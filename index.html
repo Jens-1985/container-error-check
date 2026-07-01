@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Container Error Check</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#161A20; --paper:#F5F3EE; --panel:#FFFFFF; --line:#DAD5C9;
+    --red:#C0392B; --red-bg:#FBE9E6;
+    --amber:#B8791F; --amber-bg:#FBF2E1;
+    --yellow:#9A7B12; --yellow-bg:#FAF6DF;
+    --green:#3B855D; --green-bg:#E8F3ED;
+    --steel:#3F5E7C; --steel-bg:#E9EFF4;
+    --muted:#6B6656;
+    --mono: ui-monospace,"SFMono-Regular","Consolas","Liberation Mono",monospace;
+    --sans: -apple-system,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);}
+  .app{max-width:1120px; margin:0 auto; padding:0 0 70px;}
+
+  header.topbar{background:var(--ink); color:var(--paper); padding:26px 30px 22px; position:relative; overflow:hidden;}
+  .brand{display:flex; align-items:flex-start; gap:13px; position:relative; z-index:2;}
+  .brand-mark{font-size:20px; color:var(--amber); font-family:var(--mono); margin-top:3px;}
+  header.topbar h1{margin:0; font-size:20px; letter-spacing:0.13em; font-weight:700; text-transform:uppercase;}
+  header.topbar p{margin:5px 0 0; font-size:13px; color:#B6B1A2; max-width:600px; line-height:1.5;}
+  .version{position:absolute; top:22px; right:28px; font-family:var(--mono); font-size:11px; color:#8A8574; letter-spacing:0.08em; z-index:2;}
+  .scanline{position:absolute; top:0; left:-40%; width:40%; height:100%; background:linear-gradient(90deg,transparent,rgba(184,121,31,0.15),transparent); animation:scan 3.4s linear infinite; pointer-events:none;}
+  @keyframes scan{ to{ left:140%; } }
+
+  main{padding:26px 30px;}
+
+  .upload-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px;}
+  @media (max-width:760px){ .upload-grid{grid-template-columns:1fr;} }
+  .upload-card{background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:0; overflow:hidden;}
+  .upload-head{padding:14px 16px 12px; display:flex; flex-direction:column; gap:9px;}
+  .upload-card label{font-size:12px; font-weight:700; letter-spacing:0.03em; color:var(--ink); text-transform:uppercase;}
+  .upload-card input[type=file]{font-size:12.5px; font-family:var(--sans);}
+  .filename{font-family:var(--mono); font-size:11.5px; color:var(--muted);}
+  .filename.loaded{color:var(--green); font-weight:600;}
+  .howto-toggle{background:var(--steel-bg); border:none; border-top:1px solid var(--line); width:100%; text-align:left; padding:9px 16px; font-size:12px; color:var(--steel); cursor:pointer; font-weight:600; display:flex; justify-content:space-between; align-items:center; font-family:var(--sans);}
+  .howto-toggle:hover{background:#DDE6EE;}
+  .howto-body{display:none; padding:12px 16px 14px; font-size:12.5px; line-height:1.6; color:var(--ink); background:#FBFAF7; border-top:1px solid var(--line);}
+  .howto-body.open{display:block;}
+  .howto-body ol{margin:0; padding-left:18px;}
+  .howto-body li{margin-bottom:5px;}
+  .howto-body code{font-family:var(--mono); background:#EFEBE1; padding:1px 5px; border-radius:3px; font-size:11.5px;}
+  .howto-body .editable{color:var(--muted); font-style:italic; font-size:11.5px; margin-top:8px; display:block;}
+
+  .controls{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin:6px 0 22px;}
+  .threshold{background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:11px 15px; display:flex; align-items:center; gap:9px;}
+  .threshold label{font-size:12px; font-weight:700; letter-spacing:0.03em; color:var(--muted); text-transform:uppercase;}
+  .threshold input{width:52px; padding:5px 6px; border:1px solid var(--line); border-radius:3px; font-family:var(--mono); font-size:14px; text-align:right;}
+  .today-note{font-size:12px; color:var(--muted); font-family:var(--mono);}
+
+  section.summary{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:8px;}
+  @media (max-width:760px){ section.summary{grid-template-columns:repeat(2,1fr);} }
+  .stat-card{border-radius:5px; padding:14px 15px; border:1px solid var(--line); display:flex; flex-direction:column; gap:3px;}
+  .stat-card .num{font-family:var(--mono); font-size:28px; font-weight:700; line-height:1;}
+  .stat-card .label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; line-height:1.3;}
+  .stat-card.red{background:var(--red-bg); border-color:#E6C1BB;} .stat-card.red .num{color:var(--red);}
+  .stat-card.amber{background:var(--amber-bg); border-color:#E9D3A6;} .stat-card.amber .num{color:var(--amber);}
+  .stat-card.green{background:var(--green-bg); border-color:#C2DDCF;} .stat-card.green .num{color:var(--green);}
+
+  .searchbar{margin:20px 0 8px;}
+  .searchbar input{width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:5px; font-family:var(--mono); font-size:13px; background:var(--panel);}
+
+  .results-block{margin-top:26px;}
+  .results-block h2{font-size:14px; letter-spacing:0.02em; margin:0 0 9px; display:flex; align-items:baseline; gap:8px;}
+  .results-block h2 .hint{font-size:12px; font-weight:400; color:var(--muted);}
+  .badge{display:inline-block; font-family:var(--mono); font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px;}
+  .badge.red{background:var(--red-bg); color:var(--red);}
+  .badge.amber{background:var(--amber-bg); color:var(--amber);}
+  .badge.green{background:var(--green-bg); color:var(--green);}
+
+  table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:5px; overflow:hidden;}
+  th,td{padding:8px 12px; text-align:left; font-size:12.5px; border-bottom:1px solid var(--line);}
+  th{background:#EEEAE0; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); font-weight:700;}
+  td.mono,th.mono{font-family:var(--mono);}
+  tr:last-child td{border-bottom:none;}
+  tr.row-red{background:var(--red-bg);}
+  tr.row-amber{background:var(--amber-bg);}
+  .lp-list{font-family:var(--mono); font-size:11.5px; color:var(--muted);}
+
+  .no-flags{padding:14px; text-align:center; color:var(--green); font-size:12.5px; font-weight:600; background:var(--green-bg); border:1px solid #C2DDCF; border-radius:5px;}
+  .empty-state{text-align:center; padding:56px 20px; color:var(--muted); font-size:14px;}
+  .empty-state .icon{font-size:26px; margin-bottom:9px; color:var(--line);}
+
+  footer.note{margin-top:32px; font-size:11.5px; color:var(--muted); line-height:1.65; border-top:1px solid var(--line); padding-top:13px;}
+  footer.note b{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="scanline"></div>
+    <span class="version">v1.0</span>
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <div>
+        <h1>Container Error Check</h1>
+        <p>Container in error? Upload je exports en de tool spoort automatisch de gekende oorzaken op: duplicate references, ontbrekende of vervallen batches, en overdelivery. Groeit mee met elke nieuwe foutsoort die je tegenkomt.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="upload-grid">
+
+      <div class="upload-card">
+        <div class="upload-head">
+          <label>1 · License plate / Packaging export</label>
+          <input type="file" id="lpFile" accept=".xlsx,.xls">
+          <div class="filename" id="lpFileName">Geen bestand geladen</div>
+        </div>
+        <button class="howto-toggle" data-target="howto-lp">Waar haal ik deze export? <span>&#9662;</span></button>
+        <div class="howto-body" id="howto-lp">
+          <ol>
+            <li>Open de <b>Licenseplate receiving sessions</b> &rarr; zoek de container met status <code>Errored</code>.</li>
+            <li>Open de sessie &rarr; <b>Packaging structure details</b> &rarr; tabblad <b>Items</b>.</li>
+            <li>Klik rechtsboven op <b>Options &rarr; Export to Excel</b> (of het Excel-icoon op het grid).</li>
+          </ol>
+          <span class="editable">&#8627; Klopt dit pad niet exact? Zeg het me, dan pas ik deze uitleg aan naar jouw stappen.</span>
+        </div>
+      </div>
+
+      <div class="upload-card">
+        <div class="upload-head">
+          <label>2 · Open purchase order lines export <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
+          <input type="file" id="poFile" accept=".xlsx,.xls">
+          <div class="filename" id="poFileName">Zonder dit bestand: geen exact overdelivery-%</div>
+        </div>
+        <button class="howto-toggle" data-target="howto-po">Waar haal ik deze export? <span>&#9662;</span></button>
+        <div class="howto-body" id="howto-po">
+          <ol>
+            <li>Open de inquiry <b>Open purchase order lines</b>.</li>
+            <li>Ga naar <b>Modify &rarr; Filter</b> en zet een range op het veld <b>Overdelivery</b> = <code>10</code> (plus Type = Purchase order, Line status = Open order).</li>
+            <li>Voer uit &rarr; klik <b>Options &rarr; Export to Excel</b>.</li>
+          </ol>
+          <span class="editable">&#8627; Klopt dit pad niet exact? Zeg het me, dan pas ik deze uitleg aan naar jouw stappen.</span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="controls">
+      <div class="threshold">
+        <label for="tolerance">Overdelivery tolerantie</label>
+        <input type="number" id="tolerance" value="10" min="0" max="100">%
+      </div>
+      <span class="today-note" id="todayNote"></span>
+    </div>
+
+    <section class="summary" id="summary" hidden>
+      <div class="stat-card red"><span class="num" id="statDup">0</span><span class="label">Duplicate references</span></div>
+      <div class="stat-card red"><span class="num" id="statExpired">0</span><span class="label">Batch vervallen</span></div>
+      <div class="stat-card amber"><span class="num" id="statNoDate">0</span><span class="label">Batch zonder datum</span></div>
+      <div class="stat-card amber"><span class="num" id="statOver">0</span><span class="label">Overdelivery</span></div>
+      <div class="stat-card green"><span class="num" id="statTotal">0</span><span class="label">Regels gescand</span></div>
+    </section>
+
+    <div class="searchbar" id="searchbar" hidden>
+      <input type="text" id="search" placeholder="Filter op item- of PO-nummer...">
+    </div>
+
+    <div id="results"></div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="icon">&#9106;</div>
+      <p>Upload de License plate / Packaging export om te starten.</p>
+    </div>
+
+    <footer class="note">
+      <b>Duplicate references</b> &mdash; meerdere license plates die naar dezelfde besteloregel wijzen. Vaak de oorzaak van "inventory dimensions on load lines cannot be changed because work has been created".<br>
+      <b>Batch vervallen</b> &mdash; batchnummer met formaat <code>[land][JJJJMMDD]</code> waarvan de datum vandaag of eerder is (bv. <code>DE20260630</code> op 1/07/2026). Komt al over datum binnen &rarr; error.<br>
+      <b>Batch zonder datum</b> &mdash; batch bevat enkel een landcode (bv. <code>DE</code>, <code>AT</code>) zonder datumcijfers, of is helemaal leeg terwijl hetzelfde item elders w&eacute;l een batch heeft.<br>
+      <b>Overdelivery</b> &mdash; hoeveelheid boven de tolerantie t.o.v. Deliver remainder op de open PO-regel.<br>
+      Alles draait lokaal in je browser &mdash; er wordt niets ge&uuml;pload naar een server.
+    </footer>
+  </main>
+</div>
+
+<script>
+let lpRows=null, poRows=null, tolerance=10;
+const TODAY=new Date(); TODAY.setHours(0,0,0,0);
+document.getElementById('todayNote').textContent='Vandaag: '+fmtDate(TODAY);
+function fmtDate(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
+
+function normKey(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
+function findVal(row,aliases){ for(const k of Object.keys(row)){ if(aliases.includes(normKey(k))) return row[k]; } return undefined; }
+function getLP(row){ return findVal(row,['licenseplate']); }
+function getPO(row){ return findVal(row,['purchaseorder']); }
+function getItem(row){ return findVal(row,['itemnumber']); }
+function getQty(row){ const v=findVal(row,['quantity']); return v==null?null:Number(v); }
+function getRef(row){ return findVal(row,['reference']); }
+function getBatch(row){ const v=findVal(row,['batchnumber']); return v==null?'':String(v).trim(); }
+function getRemainder(row){ const v=findVal(row,['deliverremainder','remainder']); return v==null?null:Number(v); }
+
+function parse8(s){ const y=+s.slice(0,4),mo=+s.slice(4,6),da=+s.slice(6,8); if(mo<1||mo>12||da<1||da>31) return null; const d=new Date(y,mo-1,da); d.setHours(0,0,0,0); return isNaN(d)?null:d; }
+function parseBatch(batch){
+  const b=String(batch||'').trim();
+  if(b==='') return {empty:true,hasDate:false,raw:''};
+  const m=b.match(/^([A-Za-z]{2,3})\s*(\d{8})$/);
+  if(!m){
+    const dOnly=b.match(/(\d{8})/);
+    if(dOnly){ const d=parse8(dOnly[1]); return {empty:false,hasDate:!!d,date:d,land:null,raw:b}; }
+    return {empty:false,hasDate:false,land:b,raw:b};
+  }
+  const d=parse8(m[2]);
+  return {empty:false,hasDate:!!d,date:d,land:m[1].toUpperCase(),raw:b};
+}
+
+function readFile(file,cb){ const r=new FileReader(); r.onload=e=>{ try{ const wb=XLSX.read(e.target.result,{type:'array'}); cb(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:null})); }catch(err){ alert('Kon dit bestand niet lezen: '+err.message); } }; r.readAsArrayBuffer(file); }
+
+document.getElementById('lpFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; readFile(f,rows=>{ lpRows=rows; const el=document.getElementById('lpFileName'); el.textContent=f.name+' — '+rows.length+' regels'; el.classList.add('loaded'); analyze(); }); });
+document.getElementById('poFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; readFile(f,rows=>{ poRows=rows; const el=document.getElementById('poFileName'); el.textContent=f.name+' — '+rows.length+' regels'; el.classList.add('loaded'); analyze(); }); });
+document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Number(e.target.value)||0; analyze(); });
+document.getElementById('search').addEventListener('input',analyze);
+document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
+
+function analyze(){
+  if(!lpRows) return;
+  document.getElementById('emptyState').hidden=true;
+  document.getElementById('summary').hidden=false;
+  document.getElementById('searchbar').hidden=false;
+  const ft=normKey(document.getElementById('search').value);
+  const matchFt=row=>!ft||normKey(getItem(row)).includes(ft)||normKey(getPO(row)).includes(ft);
+
+  const byRef={};
+  lpRows.forEach(row=>{ const r=getRef(row); if(r==null) return; (byRef[r]=byRef[r]||[]).push(row); });
+  let dupGroups=Object.keys(byRef).map(r=>({ref:r,rows:byRef[r]})).filter(g=>g.rows.length>1).filter(g=>matchFt(g.rows[0]));
+
+  const itemHasBatch={};
+  lpRows.forEach(row=>{ const it=getItem(row); if(it==null) return; const pb=parseBatch(getBatch(row)); if(!(it in itemHasBatch)) itemHasBatch[it]=false; if(pb.hasDate) itemHasBatch[it]=true; });
+
+  let expired=[], noDate=[];
+  lpRows.forEach(row=>{
+    if(!matchFt(row)) return;
+    const pb=parseBatch(getBatch(row));
+    if(pb.hasDate&&pb.date){ if(pb.date<=TODAY) expired.push({row,pb}); }
+    else{ noDate.push({row,pb,inconsistent:!!itemHasBatch[getItem(row)]}); }
+  });
+  noDate.sort((a,b)=>(b.inconsistent-a.inconsistent));
+  expired.sort((a,b)=>a.pb.date-b.pb.date);
+
+  const byPoItem={};
+  lpRows.forEach(row=>{ const po=getPO(row),it=getItem(row); if(po==null||it==null) return; const k=po+'||'+it; if(!byPoItem[k]) byPoItem[k]={po,it,rows:[],total:0}; byPoItem[k].rows.push(row); byPoItem[k].total+=(getQty(row)||0); });
+  const poIndex={};
+  if(poRows) poRows.forEach(row=>{ const po=getPO(row),it=getItem(row); if(po==null||it==null) return; poIndex[po+'||'+it]=row; });
+  let overGroups=Object.values(byPoItem).map(g=>{ const pr=poIndex[g.po+'||'+g.it]; const rem=pr?getRemainder(pr):null; let pct=null; if(rem!=null&&rem>0) pct=((g.total-rem)/rem)*100; return {...g,rem,pct}; })
+    .filter(g=>g.pct!=null&&g.pct>tolerance)
+    .filter(g=>!ft||normKey(g.it).includes(ft)||normKey(g.po).includes(ft))
+    .sort((a,b)=>(b.pct||0)-(a.pct||0));
+
+  document.getElementById('statDup').textContent=dupGroups.length;
+  document.getElementById('statExpired').textContent=expired.length;
+  document.getElementById('statNoDate').textContent=noDate.length;
+  document.getElementById('statOver').textContent=overGroups.length;
+  document.getElementById('statTotal').textContent=lpRows.length;
+
+  render(dupGroups,expired,noDate,overGroups);
+}
+
+function render(dupGroups,expired,noDate,overGroups){
+  let h='';
+
+  h+='<div class="results-block"><h2>&#128308; Duplicate references <span class="hint">&mdash; zelfde regel op meerdere LP\'s</span></h2>';
+  if(!dupGroups.length) h+='<div class="no-flags">Geen duplicate references.</div>';
+  else{ h+='<table><thead><tr><th class="mono">Reference</th><th>PO</th><th>Item</th><th>License plates</th><th>Status</th></tr></thead><tbody>';
+    dupGroups.forEach(g=>{ h+=`<tr class="row-red"><td class="mono">${g.ref}</td><td class="mono">${getPO(g.rows[0])}</td><td class="mono">${getItem(g.rows[0])}</td><td class="lp-list">${g.rows.map(getLP).join(', ')}</td><td><span class="badge red">${g.rows.length}&times; ref</span></td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>';
+
+  h+='<div class="results-block"><h2>&#128308; Batch vervallen <span class="hint">&mdash; vervaldatum &le; vandaag</span></h2>';
+  if(!expired.length) h+='<div class="no-flags">Geen vervallen batches.</div>';
+  else{ h+='<table><thead><tr><th class="mono">License plate</th><th>PO</th><th>Item</th><th class="mono">Batch</th><th class="mono">Vervalt</th></tr></thead><tbody>';
+    expired.forEach(x=>{ h+=`<tr class="row-red"><td class="mono">${getLP(x.row)}</td><td class="mono">${getPO(x.row)}</td><td class="mono">${getItem(x.row)}</td><td class="mono">${x.pb.raw}</td><td class="mono"><span class="badge red">${fmtDate(x.pb.date)}</span></td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>';
+
+  h+='<div class="results-block"><h2>&#128992; Batch zonder datum <span class="hint">&mdash; alleen landcode of leeg</span></h2>';
+  if(!noDate.length) h+='<div class="no-flags">Alle batches bevatten een datumcode.</div>';
+  else{ h+='<table><thead><tr><th class="mono">License plate</th><th>PO</th><th>Item</th><th class="mono">Batch</th><th>Status</th></tr></thead><tbody>';
+    noDate.forEach(x=>{ const isEmpty=x.pb.empty; const cls=x.inconsistent?'row-red':'row-amber';
+      const badge=x.inconsistent?'<span class="badge red">item heeft elders w&eacute;l datum</span>':(isEmpty?'<span class="badge amber">leeg</span>':'<span class="badge amber">alleen landcode</span>');
+      h+=`<tr class="${cls}"><td class="mono">${getLP(x.row)}</td><td class="mono">${getPO(x.row)}</td><td class="mono">${getItem(x.row)}</td><td class="mono">${isEmpty?'&mdash;':x.pb.raw}</td><td>${badge}</td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>';
+
+  h+='<div class="results-block"><h2>&#128992; Overdelivery</h2>';
+  if(!poRows) h+='<div class="no-flags" style="color:var(--muted);background:#EFEBE1;border-color:var(--line);">Upload de Open purchase order lines export om overdelivery exact te berekenen.</div>';
+  else if(!overGroups.length) h+='<div class="no-flags">Geen regels boven de tolerantie.</div>';
+  else{ h+='<table><thead><tr><th>PO</th><th>Item</th><th class="mono">Aanwezig</th><th class="mono">Deliver remainder</th><th class="mono">Overdelivery</th></tr></thead><tbody>';
+    overGroups.forEach(g=>{ h+=`<tr class="row-amber"><td class="mono">${g.po}</td><td class="mono">${g.it}</td><td class="mono">${g.total}</td><td class="mono">${g.rem}</td><td><span class="badge amber">${g.pct.toFixed(0)}%</span></td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>';
+
+  document.getElementById('results').innerHTML=h;
+}
+</script>
+</body>
+</html>
