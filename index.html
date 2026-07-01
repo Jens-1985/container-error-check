@@ -4,16 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Container Error Check</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="theme-color" content="#0E2A66">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --ink:#161A20; --paper:#F5F3EE; --panel:#FFFFFF; --line:#DAD5C9;
-    --red:#C0392B; --red-bg:#FBE9E6;
-    --amber:#B8791F; --amber-bg:#FBF2E1;
-    --yellow:#9A7B12; --yellow-bg:#FAF6DF;
-    --green:#3B855D; --green-bg:#E8F3ED;
-    --steel:#3F5E7C; --steel-bg:#E9EFF4;
-    --muted:#6B6656;
+    --paper:#0B1120; --panel:#141F38; --panel-2:#1B294A; --line:#28374F;
+    --ink:#E8EDF7; --muted:#93A0B8;
+    --dib:#2D6BE0; --dib-deep:#0E2A66; --dib-glow:#6EA8FF;
+    --red:#FF7062; --red-bg:#3A1D22;
+    --amber:#E7A94A; --amber-bg:#372B1B;
+    --green:#57C98A; --green-bg:#16302A;
+    --steel:#8FB2D8; --steel-bg:#1A2A44;
     --mono: ui-monospace,"SFMono-Regular","Consolas","Liberation Mono",monospace;
     --sans: -apple-system,"Segoe UI",system-ui,sans-serif;
   }
@@ -21,70 +23,71 @@
   body{margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);}
   .app{max-width:1120px; margin:0 auto; padding:0 0 70px;}
 
-  header.topbar{background:var(--ink); color:var(--paper); padding:26px 30px 22px; position:relative; overflow:hidden;}
+  header.topbar{background:linear-gradient(135deg,var(--dib-deep) 0%,#123a8f 60%,var(--dib) 130%); color:#fff; padding:26px 30px 22px; position:relative; overflow:hidden; border-bottom:1px solid var(--line);}
   .brand{display:flex; align-items:flex-start; gap:13px; position:relative; z-index:2;}
-  .brand-mark{font-size:20px; color:var(--amber); font-family:var(--mono); margin-top:3px;}
-  header.topbar h1{margin:0; font-size:20px; letter-spacing:0.13em; font-weight:700; text-transform:uppercase;}
-  header.topbar p{margin:5px 0 0; font-size:13px; color:#B6B1A2; max-width:600px; line-height:1.5;}
-  .version{position:absolute; top:22px; right:28px; font-family:var(--mono); font-size:11px; color:#8A8574; letter-spacing:0.08em; z-index:2;}
-  .scanline{position:absolute; top:0; left:-40%; width:40%; height:100%; background:linear-gradient(90deg,transparent,rgba(184,121,31,0.15),transparent); animation:scan 3.4s linear infinite; pointer-events:none;}
+  .brand-mark{font-size:20px; color:var(--dib-glow); font-family:var(--mono); margin-top:3px;}
+  header.topbar h1{margin:0; font-size:20px; letter-spacing:0.13em; font-weight:700; text-transform:uppercase; color:#fff;}
+  header.topbar p{margin:5px 0 0; font-size:13px; color:#C3D2EC; max-width:600px; line-height:1.5;}
+  .version{position:absolute; top:22px; right:28px; font-family:var(--mono); font-size:11px; color:#9FB4DA; letter-spacing:0.08em; z-index:2;}
+  .scanline{position:absolute; top:0; left:-40%; width:40%; height:100%; background:linear-gradient(90deg,transparent,rgba(110,168,255,0.18),transparent); animation:scan 3.4s linear infinite; pointer-events:none;}
   @keyframes scan{ to{ left:140%; } }
 
   main{padding:26px 30px;}
 
   .upload-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px;}
   @media (max-width:760px){ .upload-grid{grid-template-columns:1fr;} }
-  .upload-card{background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:0; overflow:hidden;}
+  .upload-card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:0; overflow:hidden;}
   .upload-head{padding:14px 16px 12px; display:flex; flex-direction:column; gap:9px;}
   .upload-card label{font-size:12px; font-weight:700; letter-spacing:0.03em; color:var(--ink); text-transform:uppercase;}
-  .upload-card input[type=file]{font-size:12.5px; font-family:var(--sans);}
+  .upload-card input[type=file]{font-size:12.5px; font-family:var(--sans); color:var(--ink);}
   .filename{font-family:var(--mono); font-size:11.5px; color:var(--muted);}
   .filename.loaded{color:var(--green); font-weight:600;}
   .howto-toggle{background:var(--steel-bg); border:none; border-top:1px solid var(--line); width:100%; text-align:left; padding:9px 16px; font-size:12px; color:var(--steel); cursor:pointer; font-weight:600; display:flex; justify-content:space-between; align-items:center; font-family:var(--sans);}
-  .howto-toggle:hover{background:#DDE6EE;}
-  .howto-body{display:none; padding:12px 16px 14px; font-size:12.5px; line-height:1.6; color:var(--ink); background:#FBFAF7; border-top:1px solid var(--line);}
+  .howto-toggle:hover{background:#213456;}
+  .howto-body{display:none; padding:12px 16px 14px; font-size:12.5px; line-height:1.6; color:var(--ink); background:var(--panel-2); border-top:1px solid var(--line);}
   .howto-body.open{display:block;}
   .howto-body ol{margin:0; padding-left:18px;}
   .howto-body li{margin-bottom:5px;}
-  .howto-body code{font-family:var(--mono); background:#EFEBE1; padding:1px 5px; border-radius:3px; font-size:11.5px;}
+  .howto-body code{font-family:var(--mono); background:#0E1830; padding:1px 5px; border-radius:3px; font-size:11.5px; color:var(--dib-glow);}
   .howto-body .editable{color:var(--muted); font-style:italic; font-size:11.5px; margin-top:8px; display:block;}
 
   .controls{display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin:6px 0 22px;}
-  .threshold{background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:11px 15px; display:flex; align-items:center; gap:9px;}
+  .threshold{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 15px; display:flex; align-items:center; gap:9px;}
   .threshold label{font-size:12px; font-weight:700; letter-spacing:0.03em; color:var(--muted); text-transform:uppercase;}
-  .threshold input{width:52px; padding:5px 6px; border:1px solid var(--line); border-radius:3px; font-family:var(--mono); font-size:14px; text-align:right;}
+  .threshold input{width:52px; padding:5px 6px; border:1px solid var(--line); border-radius:4px; font-family:var(--mono); font-size:14px; text-align:right; background:var(--panel-2); color:var(--ink);}
   .today-note{font-size:12px; color:var(--muted); font-family:var(--mono);}
 
   section.summary{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:8px;}
   @media (max-width:760px){ section.summary{grid-template-columns:repeat(2,1fr);} }
-  .stat-card{border-radius:5px; padding:14px 15px; border:1px solid var(--line); display:flex; flex-direction:column; gap:3px;}
-  .stat-card .num{font-family:var(--mono); font-size:28px; font-weight:700; line-height:1;}
+  .stat-card{border-radius:8px; padding:14px 15px; border:1px solid var(--line); display:flex; flex-direction:column; gap:3px; background:var(--panel);}
+  .stat-card .num{font-family:var(--mono); font-size:28px; font-weight:700; line-height:1; color:var(--ink);}
   .stat-card .label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.02em; line-height:1.3;}
-  .stat-card.red{background:var(--red-bg); border-color:#E6C1BB;} .stat-card.red .num{color:var(--red);}
-  .stat-card.amber{background:var(--amber-bg); border-color:#E9D3A6;} .stat-card.amber .num{color:var(--amber);}
-  .stat-card.green{background:var(--green-bg); border-color:#C2DDCF;} .stat-card.green .num{color:var(--green);}
+  .stat-card.red{background:var(--red-bg); border-color:#5A2E30;} .stat-card.red .num{color:var(--red);}
+  .stat-card.amber{background:var(--amber-bg); border-color:#5A4830;} .stat-card.amber .num{color:var(--amber);}
+  .stat-card.green{background:var(--green-bg); border-color:#2C5344;} .stat-card.green .num{color:var(--green);}
 
   .searchbar{margin:20px 0 8px;}
-  .searchbar input{width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:5px; font-family:var(--mono); font-size:13px; background:var(--panel);}
+  .searchbar input{width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-family:var(--mono); font-size:13px; background:var(--panel-2); color:var(--ink);}
 
-  .results-block{margin-top:26px;}
-  .results-block h2{font-size:14px; letter-spacing:0.02em; margin:0 0 9px; display:flex; align-items:baseline; gap:8px;}
+  .results-block{margin-top:26px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px;}
+  .results-block h2{font-size:14px; letter-spacing:0.02em; margin:0 0 9px; display:flex; align-items:baseline; gap:8px; color:var(--ink);}
   .results-block h2 .hint{font-size:12px; font-weight:400; color:var(--muted);}
   .badge{display:inline-block; font-family:var(--mono); font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px;}
   .badge.red{background:var(--red-bg); color:var(--red);}
   .badge.amber{background:var(--amber-bg); color:var(--amber);}
   .badge.green{background:var(--green-bg); color:var(--green);}
 
-  table{width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:5px; overflow:hidden;}
+  table{width:100%; border-collapse:collapse; background:transparent; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
   th,td{padding:8px 12px; text-align:left; font-size:12.5px; border-bottom:1px solid var(--line);}
-  th{background:#EEEAE0; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); font-weight:700;}
+  th{background:var(--panel-2); font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); font-weight:700;}
   td.mono,th.mono{font-family:var(--mono);}
+  td{color:var(--ink);}
   tr:last-child td{border-bottom:none;}
   tr.row-red{background:var(--red-bg);}
   tr.row-amber{background:var(--amber-bg);}
   .lp-list{font-family:var(--mono); font-size:11.5px; color:var(--muted);}
 
-  .no-flags{padding:14px; text-align:center; color:var(--green); font-size:12.5px; font-weight:600; background:var(--green-bg); border:1px solid #C2DDCF; border-radius:5px;}
+  .no-flags{padding:14px; text-align:center; color:var(--green); font-size:12.5px; font-weight:600; background:var(--green-bg); border:1px solid #2C5344; border-radius:8px;}
   .empty-state{text-align:center; padding:56px 20px; color:var(--muted); font-size:14px;}
   .empty-state .icon{font-size:26px; margin-bottom:9px; color:var(--line);}
 
@@ -97,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.2.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -167,7 +170,7 @@
     </div>
 
     <div id="diagnosis"></div>
-    <button id="suspectBtn" hidden style="margin:2px 0 14px;padding:9px 16px;border:1px solid var(--line);background:#EFEBE1;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;color:var(--ink)">&#128269; Toon volledige ranglijst</button>
+    <button id="suspectBtn" hidden style="margin:2px 0 14px;padding:9px 16px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;cursor:pointer;font:inherit;font-weight:600;color:var(--ink)">&#128269; Toon volledige ranglijst</button>
     <div id="suspectResults"></div>
     <div id="brainPanel"></div>
     <input type="file" id="brainImport" accept="application/json" style="display:none">
@@ -266,7 +269,7 @@ function renderDiagnosis(){
   cecRenderList(); cecRenderBrain();
   if(!cand.length){ box.innerHTML='<div class="results-block"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">Geen duidelijke signalen gevonden. Controleer of de kolommen herkend zijn (juiste export?), of bekijk de volledige ranglijst.</div></div>'; return; }
   const top=cand[0]; const conf=cecConf(cand);
-  let h='<div class="results-block" style="border:2px solid #C6892B"><h2>&#129504; Slimme diagnose <span class="hint">&mdash; leert van jullie feedback</span></h2>';
+  let h='<div class="results-block" style="border:2px solid var(--dib)"><h2>&#129504; Slimme diagnose <span class="hint">&mdash; leert van jullie feedback</span></h2>';
   h+='<div style="padding:6px 2px 10px"><b>Meest waarschijnlijke oorzaak</b> &nbsp; <span class="badge amber">zekerheid '+conf+'%</span></div>';
   h+='<table><tbody>';
   h+='<tr><td style="width:130px;color:var(--muted)">License plate</td><td class="mono">'+(getLP(top.row)||'&mdash;')+'</td></tr>';
@@ -274,7 +277,7 @@ function renderDiagnosis(){
   h+='<tr><td style="color:var(--muted)">Item</td><td class="mono">'+(getItem(top.row)||'&mdash;')+'</td></tr>';
   h+='<tr><td style="color:var(--muted)">Waarom</td><td>'+top.reasons.join('; ')+'</td></tr>';
   h+='</tbody></table>';
-  h+='<div style="margin-top:10px;padding:8px 10px;background:#EFEBE1;border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <span style="color:var(--muted)">&nbsp;of markeer het juiste in de volledige ranglijst hieronder.</span></div>';
+  h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <span style="color:var(--muted)">&nbsp;of markeer het juiste in de volledige ranglijst hieronder.</span></div>';
   h+='</div>'; box.innerHTML=h;
 }
 function cecRenderList(){
@@ -308,9 +311,9 @@ function cecRenderBrain(){
   const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery'};
   let h='<div class="results-block"><h2>&#129504; Wat de tool geleerd heeft <span class="hint">&mdash; '+(brain.cases||0)+' opgeloste container'+((brain.cases===1)?'':'s')+' &middot; lokaal op deze PC</span></h2>';
   h+='<div style="font-size:13px">';
-  for(const k in labels){ const pw=Math.round(100*w[k]/max); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:230px;color:var(--muted)">'+labels[k]+'</span><span style="flex:1;background:#EFEBE1;border-radius:4px;height:10px;overflow:hidden"><span style="display:block;height:10px;width:'+pw+'%;background:#C6892B"></span></span><span class="mono" style="width:44px;text-align:right">'+w[k].toFixed(2)+'</span></div>'; }
+  for(const k in labels){ const pw=Math.round(100*w[k]/max); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:230px;color:var(--muted)">'+labels[k]+'</span><span style="flex:1;background:var(--panel-2);border-radius:4px;height:10px;overflow:hidden"><span style="display:block;height:10px;width:'+pw+'%;background:var(--dib)"></span></span><span class="mono" style="width:44px;text-align:right">'+w[k].toFixed(2)+'</span></div>'; }
   h+='</div>';
-  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="cecExport()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;font:inherit">&#8681; Brein exporteren</button><button onclick="document.getElementById(\'brainImport\').click()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;font:inherit">&#8679; Brein importeren</button><button onclick="cecReset()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;cursor:pointer;font:inherit;color:#B00">Reset</button></div>';
+  h+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button onclick="cecExport()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit">&#8681; Brein exporteren</button><button onclick="document.getElementById(\'brainImport\').click()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit">&#8679; Brein importeren</button><button onclick="cecReset()" style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit;color:#B00">Reset</button></div>';
   h+='<div class="hint" style="margin-top:6px">Deel het geexporteerde bestand met collega\'s zodat iedereen dezelfde geleerde kennis heeft &mdash; er verlaat niets automatisch je computer.</div>';
   box.innerHTML=h;
 }
@@ -393,7 +396,7 @@ function render(dupGroups,expired,noDate,overGroups){
   h+='</div>';
 
   h+='<div class="results-block"><h2>&#128992; Overdelivery</h2>';
-  if(!poRows) h+='<div class="no-flags" style="color:var(--muted);background:#EFEBE1;border-color:var(--line);">Upload de Open purchase order lines export om overdelivery exact te berekenen.</div>';
+  if(!poRows) h+='<div class="no-flags" style="color:var(--muted);background:var(--panel-2);border-color:var(--line);">Upload de Open purchase order lines export om overdelivery exact te berekenen.</div>';
   else if(!overGroups.length) h+='<div class="no-flags">Geen regels boven de tolerantie.</div>';
   else{ h+='<table><thead><tr><th>PO</th><th>Item</th><th class="mono">Aanwezig</th><th class="mono">Deliver remainder</th><th class="mono">Overdelivery</th></tr></thead><tbody>';
     overGroups.forEach(g=>{ h+=`<tr class="row-amber"><td class="mono">${g.po}</td><td class="mono">${g.it}</td><td class="mono">${g.total}</td><td class="mono">${g.rem}</td><td><span class="badge amber">${g.pct.toFixed(0)}%</span></td></tr>`; });
