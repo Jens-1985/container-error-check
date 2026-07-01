@@ -166,6 +166,9 @@
       <input type="text" id="search" placeholder="Filter op item- of PO-nummer...">
     </div>
 
+    <button id="suspectBtn" hidden style="margin:2px 0 14px;padding:9px 16px;border:1px solid var(--line);background:#EFEBE1;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;color:var(--ink)">&#128269; Toon meest verdachte (indicatief)</button>
+    <div id="suspectResults"></div>
+
     <div id="results"></div>
 
     <div class="empty-state" id="emptyState">
@@ -191,13 +194,13 @@ function fmtDate(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.get
 
 function normKey(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
 function findVal(row,aliases){ for(const k of Object.keys(row)){ if(aliases.includes(normKey(k))) return row[k]; } return undefined; }
-function getLP(row){ return findVal(row,['licenseplate']); }
-function getPO(row){ return findVal(row,['purchaseorder']); }
-function getItem(row){ return findVal(row,['itemnumber']); }
-function getQty(row){ const v=findVal(row,['quantity']); return v==null?null:Number(v); }
-function getRef(row){ return findVal(row,['reference']); }
-function getBatch(row){ const v=findVal(row,['batchnumber']); return v==null?'':String(v).trim(); }
-function getRemainder(row){ const v=findVal(row,['deliverremainder','remainder']); return v==null?null:Number(v); }
+function getLP(row){ return findVal(row,['licenseplate','kentekenplaat','kenteken']); }
+function getPO(row){ return findVal(row,['purchaseorder','inkooporder','bestelling']); }
+function getItem(row){ return findVal(row,['itemnumber','artikelnummer','artikel']); }
+function getQty(row){ const v=findVal(row,['quantity','aantal','hoeveelheid']); return v==null?null:Number(v); }
+function getRef(row){ return findVal(row,['reference','referentie']); }
+function getBatch(row){ const v=findVal(row,['batchnumber','batchnummer','partijnummer','partij']); return v==null?'':String(v).trim(); }
+function getRemainder(row){ const v=findVal(row,['deliverremainder','remainder','televerenrestant','restant','resterend']); return v==null?null:Number(v); }
 
 function parse8(s){ const y=+s.slice(0,4),mo=+s.slice(4,6),da=+s.slice(6,8); if(mo<1||mo>12||da<1||da>31) return null; const d=new Date(y,mo-1,da); d.setHours(0,0,0,0); return isNaN(d)?null:d; }
 function parseBatch(batch){
@@ -221,11 +224,54 @@ document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Num
 document.getElementById('search').addEventListener('input',analyze);
 document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
 
+document.getElementById('suspectBtn').addEventListener('click',()=>{
+  const box=document.getElementById('suspectResults'); const btn=document.getElementById('suspectBtn');
+  if(box.innerHTML){ box.innerHTML=''; btn.textContent='🔍 Toon meest verdachte (indicatief)'; return; }
+  const s=computeSuspects();
+  let h='<div class="results-block"><h2>🔍 Meest verdachte <span class="hint">&mdash; indicatieve gok, geen bevestigde oorzaak</span></h2>';
+  if(!s.length){ h+='<div class="no-flags">Onvoldoende gegevens om te rangschikken — zijn de kolommen wel herkend?</div>'; }
+  else{ h+='<table><thead><tr><th>#</th><th class="mono">License plate</th><th>PO</th><th>Item</th><th>Waarom verdacht</th></tr></thead><tbody>';
+    s.forEach((x,i)=>{ h+=`<tr class="row-amber"><td class="mono">${i+1}</td><td class="mono">${getLP(x.row)||'&mdash;'}</td><td class="mono">${getPO(x.row)||'&mdash;'}</td><td class="mono">${getItem(x.row)||'&mdash;'}</td><td>${x.reasons.join('; ')}</td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>'; box.innerHTML=h; btn.textContent='Verberg meest verdachte';
+});
+
+function computeSuspects(){
+  if(!lpRows) return [];
+  const DAY=86400000;
+  const refCount={};
+  lpRows.forEach(r=>{ const ref=getRef(r); if(ref!=null) refCount[ref]=(refCount[ref]||0)+1; });
+  const itemHasBatch={};
+  lpRows.forEach(r=>{ const it=getItem(r); if(it==null) return; const pb=parseBatch(getBatch(r)); if(!(it in itemHasBatch)) itemHasBatch[it]=false; if(pb.hasDate) itemHasBatch[it]=true; });
+  const byPoItem={};
+  lpRows.forEach(r=>{ const po=getPO(r),it=getItem(r); if(po==null||it==null) return; const k=po+'||'+it; if(!byPoItem[k]) byPoItem[k]={total:0}; byPoItem[k].total+=(getQty(r)||0); });
+  const poIndex={};
+  if(poRows) poRows.forEach(r=>{ const po=getPO(r),it=getItem(r); if(po==null||it==null) return; poIndex[po+'||'+it]=r; });
+  return lpRows.map(r=>{
+    let score=0; const reasons=[];
+    const pb=parseBatch(getBatch(r));
+    if(pb.hasDate&&pb.date){
+      const days=Math.round((pb.date-TODAY)/DAY);
+      if(days<=0){ score+=1000; reasons.push('batch al vervallen ('+fmtDate(pb.date)+')'); }
+      else{ score+=Math.max(0,400-days); reasons.push('vervalt over '+days+' dag'+(days===1?'':'en')); }
+    } else if(pb.empty){ score+=150; reasons.push('geen batch ingevuld'); if(itemHasBatch[getItem(r)]){ score+=200; reasons.push('item heeft elders wél een batch'); } }
+    else { score+=120; reasons.push('batch zonder datum ('+pb.raw+')'); if(itemHasBatch[getItem(r)]){ score+=200; reasons.push('item heeft elders wél een datum'); } }
+    const ref=getRef(r);
+    if(ref!=null&&refCount[ref]>1){ score+=350; reasons.push('referentie komt '+refCount[ref]+'× voor'); }
+    const po=getPO(r),it=getItem(r); const pr=poIndex[po+'||'+it];
+    if(pr){ const rem=getRemainder(pr); const tot=byPoItem[po+'||'+it].total; if(rem!=null&&rem>0){ const pct=((tot-rem)/rem)*100; if(pct>0){ score+=Math.min(300,pct*3); reasons.push('levering '+pct.toFixed(0)+'% t.o.v. remainder'); } } }
+    return {row:r,score,reasons};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,8);
+}
+
 function analyze(){
   if(!lpRows) return;
   document.getElementById('emptyState').hidden=true;
   document.getElementById('summary').hidden=false;
   document.getElementById('searchbar').hidden=false;
+  document.getElementById('suspectBtn').hidden=false;
+  document.getElementById('suspectResults').innerHTML='';
+  document.getElementById('suspectBtn').textContent='🔍 Toon meest verdachte (indicatief)';
   const ft=normKey(document.getElementById('search').value);
   const matchFt=row=>!ft||normKey(getItem(row)).includes(ft)||normKey(getPO(row)).includes(ft);
 
