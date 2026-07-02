@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.2.1</span>
+    <span class="version">v1.3.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -153,6 +153,16 @@
       <div class="threshold">
         <label for="tolerance">Overdelivery tolerantie</label>
         <input type="number" id="tolerance" value="10" min="0" max="100">%
+      </div>
+      <div class="threshold">
+        <label for="errFocus">Welke foutmelding?</label>
+        <select id="errFocus" style="padding:5px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-2);color:var(--ink);font-family:var(--sans);font-size:12.5px">
+          <option value="">Algemeen (alle signalen)</option>
+          <option value="workcreated">work has been created / dimensions cannot be changed</option>
+          <option value="batch">batch / vervaldatum-fout</option>
+          <option value="overdelivery">overdelivery</option>
+          <option value="deadlock">deadlock (PurchTableVersion)</option>
+        </select>
       </div>
       <span class="today-note" id="todayNote"></span>
     </div>
@@ -235,7 +245,7 @@ document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Num
 document.getElementById('search').addEventListener('input',analyze);
 document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
 
-let CEC_lastCand=[]; let CEC_listOpen=false;
+let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5}};
 const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2};
 const CEC_SUM=Object.values(CEC_DEFAULT).reduce((a,b)=>a+b,0);
 const CEC_KEY='cec_brain_v1';
@@ -260,17 +270,17 @@ function cecFeatures(){
     else { f.noDate=1; reasons.push('batch zonder datum ('+pb.raw+')'); if(itemHasBatch[it]){ f.noDateInconsistent=1; reasons.push('item heeft elders wel een datum'); } }
     const ref=getRef(r); if(ref!=null&&refCount[ref]>1){ f.dupRef=1; reasons.push('referentie komt '+refCount[ref]+'x voor'); }
     const pr=poIndex[po+'||'+it]; if(pr){ const rem=getRemainder(pr); const tot=byPoItem[po+'||'+it].total; if(rem!=null&&rem>0){ pct=((tot-rem)/rem)*100; if(pct>0){ f.overdelivery=Math.max(0,Math.min(1,pct/100)); reasons.push('levering '+pct.toFixed(0)+'% t.o.v. remainder'); } } }
-    let score=0; for(const k in f) score+=brain.weights[k]*f[k];
+    const fm=CEC_FOCUS[CEC_focus]||null; let score=0; for(const k in f){ const mult=fm?(fm[k]||1):1; score+=brain.weights[k]*f[k]*mult; }
     return {id:idx,row:r,f:f,score:score,reasons:reasons,pct:pct,days:days};
   });
 }
-function computeCandidates(){ if(!lpRows) return []; return cecFeatures().filter(c=>c.score>0).sort((a,b)=>b.score-a.score); }
+function computeCandidates(){ if(!lpRows) return []; return cecFeatures().filter(function(c){return c.score>0 && !CEC_dismissed.has(c.id);}).sort((a,b)=>b.score-a.score); }
 function cecConf(cand){ if(!cand.length) return 0; const s1=cand[0].score; const s2=cand[1]?cand[1].score:0; if(s2<=0) return 90; return Math.round(Math.max(50,Math.min(99, 100*s1/(s1+s2)))); }
 
 function renderDiagnosis(){
   const box=document.getElementById('diagnosis'); if(!box) return;
   if(!lpRows){ box.innerHTML=''; return; }
-  const cand=computeCandidates(); CEC_lastCand=cand;
+  var sb=document.getElementById('suspectBtn'); if(CEC_focus==='deadlock'){ if(sb) sb.hidden=true; var sr=document.getElementById('suspectResults'); if(sr) sr.innerHTML=''; var bp=document.getElementById('brainPanel'); if(bp) bp.innerHTML=''; box.innerHTML='<div class="results-block" style="border-left:3px solid var(--dib)"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">Een <b>Deadlock op PurchTableVersion</b> is geen container-inhoudsprobleem &mdash; er valt hier niets in de export te vinden. Reset de order-status of probeer opnieuw (zie info-kaart onderaan).</div></div>'; return; } if(sb) sb.hidden=false; const cand=computeCandidates(); CEC_lastCand=cand;
   cecRenderList(); cecRenderBrain();
   if(!cand.length){ box.innerHTML='<div class="results-block"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">Geen duidelijke signalen gevonden. Controleer of de kolommen herkend zijn (juiste export?), of bekijk de volledige ranglijst.</div></div>'; return; }
   const top=cand[0]; const conf=cecConf(cand);
@@ -282,7 +292,7 @@ function renderDiagnosis(){
   h+='<tr><td style="color:var(--muted)">Item</td><td class="mono">'+(getItem(top.row)||'&mdash;')+'</td></tr>';
   h+='<tr><td style="color:var(--muted)">Waarom</td><td>'+top.reasons.join('; ')+'</td></tr>';
   h+='</tbody></table>';
-  h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <span style="color:var(--muted)">&nbsp;of markeer het juiste in de volledige ranglijst hieronder.</span></div>';
+  h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <button onclick="cecReject('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#7A2B2B;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10008; Dit was de oorzaak niet</button><div style="color:var(--muted);margin-top:6px">Of markeer het juiste in de volledige ranglijst hieronder.</div></div>';
   h+='</div>'; box.innerHTML=h;
 }
 function cecRenderList(){
@@ -292,7 +302,7 @@ function cecRenderList(){
   let h='<div class="results-block"><h2>&#128269; Volledige ranglijst <span class="hint">&mdash; gerangschikt op geleerde score</span></h2>';
   if(!cand.length){ h+='<div class="no-flags">Geen kandidaten met signalen.</div>'; }
   else{ h+='<table><thead><tr><th>#</th><th class="mono">License plate</th><th>PO</th><th>Item</th><th>Signalen</th><th></th></tr></thead><tbody>';
-    cand.slice(0,15).forEach((x,i)=>{ h+='<tr class="row-amber"><td class="mono">'+(i+1)+'</td><td class="mono">'+(getLP(x.row)||'&mdash;')+'</td><td class="mono">'+(getPO(x.row)||'&mdash;')+'</td><td class="mono">'+(getItem(x.row)||'&mdash;')+'</td><td>'+x.reasons.join('; ')+'</td><td><button onclick="cecLearn('+x.id+')" style="padding:4px 8px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit">&#10004; oorzaak</button></td></tr>'; });
+    cand.slice(0,15).forEach((x,i)=>{ h+='<tr class="row-amber"><td class="mono">'+(i+1)+'</td><td class="mono">'+(getLP(x.row)||'&mdash;')+'</td><td class="mono">'+(getPO(x.row)||'&mdash;')+'</td><td class="mono">'+(getItem(x.row)||'&mdash;')+'</td><td>'+x.reasons.join('; ')+'</td><td><button onclick="cecLearn('+x.id+')" style="padding:4px 8px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit">&#10004; oorzaak</button> <button onclick="cecReject('; });
     h+='</tbody></table>'; }
   h+='</div>'; box.innerHTML=h;
 }
@@ -309,6 +319,7 @@ function cecLearn(id){
   cecSave(); renderDiagnosis();
   cecToast('Geleerd! De tool weet nu beter waar te kijken (' + brain.cases + ' opgeloste containers).');
 }
+function cecReject(id){ const cand=CEC_lastCand; const c=cand.find(function(x){return x.id===id;}); if(c){ const lr=0.25; for(const k in brain.weights){ if((c.f[k]||0)>0) brain.weights[k]-=lr*c.f[k]; } for(const k in brain.weights){ if(brain.weights[k]<0.1) brain.weights[k]=0.1; } let sum=0; for(const k in brain.weights) sum+=brain.weights[k]; const sc=CEC_SUM/sum; for(const k in brain.weights) brain.weights[k]*=sc; cecSave(); } CEC_dismissed.add(id); renderDiagnosis(); cecToast('Ok, weggelegd. De volgende meest waarschijnlijke wordt getoond.'); }
 function cecToast(msg){ let t=document.getElementById('cecToast'); if(!t){ t=document.createElement('div'); t.id='cecToast'; t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#161A20;color:#fff;padding:10px 16px;border-radius:8px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);font-weight:600;transition:opacity .4s'; document.body.appendChild(t);} t.textContent=msg; t.style.opacity='1'; clearTimeout(window.__cecT); window.__cecT=setTimeout(function(){t.style.opacity='0';},2800); }
 function cecRenderBrain(){
   const box=document.getElementById('brainPanel'); if(!box) return; const w=brain.weights;
@@ -326,6 +337,7 @@ function cecExport(){ const blob=new Blob([JSON.stringify(brain,null,2)],{type:'
 function cecReset(){ if(!confirm('Alle geleerde kennis wissen en terug naar standaard?')) return; brain={weights:Object.assign({},CEC_DEFAULT),cases:0,log:[]}; cecSave(); renderDiagnosis(); cecToast('Brein gereset naar standaard.'); }
 
 document.getElementById('suspectBtn').addEventListener('click',function(){ CEC_listOpen=!CEC_listOpen; document.getElementById('suspectBtn').textContent = CEC_listOpen ? 'Verberg volledige ranglijst' : '🔍 Toon volledige ranglijst'; cecRenderList(); });
+document.getElementById('errFocus').addEventListener('change',function(e){ CEC_focus=e.target.value; CEC_dismissed=new Set(); if(lpRows) renderDiagnosis(); });
 document.getElementById('brainImport').addEventListener('change',function(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=function(ev){ try{ const b=JSON.parse(ev.target.result); if(!b.weights) throw new Error('geen geldig brein-bestand'); for(const k in CEC_DEFAULT) if(!(k in b.weights)) b.weights[k]=CEC_DEFAULT[k]; brain=b; cecSave(); renderDiagnosis(); cecToast('Brein geimporteerd (' + (b.cases||0) + ' containers).'); }catch(err){ alert('Kon dit brein-bestand niet lezen: '+err.message); } }; r.readAsText(f); e.target.value=''; });
 function analyze(){
   if(!lpRows) return;
@@ -334,6 +346,7 @@ function analyze(){
   document.getElementById('searchbar').hidden=false;
   document.getElementById('suspectBtn').hidden=false;
   CEC_listOpen=false;
+  CEC_dismissed=new Set();
   document.getElementById('suspectBtn').textContent='🔍 Toon volledige ranglijst';
   const ft=normKey(document.getElementById('search').value);
   const matchFt=row=>!ft||normKey(getItem(row)).includes(ft)||normKey(getPO(row)).includes(ft);
