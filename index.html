@@ -34,7 +34,7 @@
 
   main{padding:26px 30px;}
 
-  .upload-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px;}
+  .upload-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:14px;}
   @media (max-width:760px){ .upload-grid{grid-template-columns:1fr;} }
   .upload-card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:0; overflow:hidden;}
   .upload-head{padding:14px 16px 12px; display:flex; flex-direction:column; gap:9px;}
@@ -57,7 +57,7 @@
   .threshold input{width:52px; padding:5px 6px; border:1px solid var(--line); border-radius:4px; font-family:var(--mono); font-size:14px; text-align:right; background:var(--panel-2); color:var(--ink);}
   .today-note{font-size:12px; color:var(--muted); font-family:var(--mono);}
 
-  section.summary{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:8px;}
+  section.summary{display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:8px;}
   @media (max-width:760px){ section.summary{grid-template-columns:repeat(2,1fr);} }
   .stat-card{border-radius:8px; padding:14px 15px; border:1px solid var(--line); display:flex; flex-direction:column; gap:3px; background:var(--panel);}
   .stat-card .num{font-family:var(--mono); font-size:28px; font-weight:700; line-height:1; color:var(--ink);}
@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.3.0</span>
+    <span class="version">v1.4.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -147,7 +147,23 @@
         </div>
       </div>
 
-    </div>
+    
+      <div class="upload-card">
+        <div class="upload-head">
+          <label>3 · Open sales order lines export <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
+          <input type="file" id="soFile" accept=".xlsx,.xls">
+          <div class="filename" id="soFileName">Vindt crossdock-botsingen (open SO op container-item)</div>
+        </div>
+        <button class="howto-toggle" data-target="howto-so">Waar haal ik deze export? <span>&#9662;</span></button>
+        <div class="howto-body" id="howto-so">
+          <ol>
+            <li>Open de inquiry <b>Open sales order lines</b>.</li>
+            <li>Exporteer enkel de <b>open</b> SO-lijnen (item numbers van de container staan doorgaans al ingevuld).</li>
+            <li>Klik <b>Options &rarr; Export to Excel</b>.</li>
+          </ol>
+          <span class="editable">&#8627; Klopt dit pad niet exact? Zeg het me, dan pas ik deze uitleg aan.</span>
+        </div>
+      </div>      </div>
 
     <div class="controls">
       <div class="threshold">
@@ -172,6 +188,7 @@
       <div class="stat-card red"><span class="num" id="statExpired">0</span><span class="label">Batch vervallen</span></div>
       <div class="stat-card amber"><span class="num" id="statNoDate">0</span><span class="label">Batch zonder datum</span></div>
       <div class="stat-card amber"><span class="num" id="statOver">0</span><span class="label">Overdelivery</span></div>
+      <div class="stat-card red"><span class="num" id="statCross">0</span><span class="label">Open SO / crossdock</span></div>
       <div class="stat-card green"><span class="num" id="statTotal">0</span><span class="label">Regels gescand</span></div>
     </section>
 
@@ -192,6 +209,17 @@
       <p>Upload de License plate / Packaging export om te starten.</p>
     </div>
 
+    <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #FF7062; border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
+      <b style="color:#FF9A90">&#9888; Integrationlog: "work has been created" / dimensions cannot be changed</b><br>
+      Foutmelding (LP Receiving process V2, <code>srvazr_clips</code>): <i>"Warning/Error &mdash; The inventory dimensions on load lines cannot be changed because work has been created. Update has been canceled."</i> Betekent dat iets de voorraad <b>vastpint</b>. Loop deze checklist af:
+      <ol style="margin:6px 0 0; padding-left:18px">
+        <li><b>Duplicate references</b> &mdash; meerdere LP's naar dezelfde besteloregel (zie check hierboven).</li>
+        <li><b>Bestaand werk</b> &mdash; All work &rarr; filter op het load-/shipmentnummer &rarr; <b>Cancel work</b> (staat het op <i>In process</i>, dan enkel de load splitsen).</li>
+        <li><b>Marking</b> &mdash; PO-regel &rarr; Inventory &rarr; Marking tegen een SO/RMA? Verwijder de marking.</li>
+        <li><b>Open sales order / crossdock</b> &mdash; een open SO op een container-item pint de inbound (zie de crossdock-check). Handel de SO af of annuleer het werk.</li>
+      </ol>
+      Daarna telkens: <b>reset status</b> en herstart het receiving.
+    </div>
     <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--dib); border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
       <b style="color:var(--dib-glow)">&#8505; Andere foutmelding: Deadlock op Purchase order versions</b><br>
       Zie je <i>"Cannot edit a record in Purchase order versions (PurchTableVersion) &mdash; Deadlock"</i>? Dat is <b>geen container-inhoudsprobleem</b> &mdash; zoek er dus niet voor in de export. Het is een tijdelijke database-lock, meestal doordat een batchjob (bv. CLIPS / <code>srvazr_clips</code>) en een gebruiker tegelijk aan dezelfde PO werken.<br>
@@ -208,7 +236,7 @@
 </div>
 
 <script>
-let lpRows=null, poRows=null, tolerance=10;
+let lpRows=null, poRows=null, soRows=null, tolerance=10;
 const TODAY=new Date(); TODAY.setHours(0,0,0,0);
 document.getElementById('todayNote').textContent='Vandaag: '+fmtDate(TODAY);
 function fmtDate(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
@@ -222,6 +250,7 @@ function getQty(row){ const v=findVal(row,['quantity','aantal','hoeveelheid']); 
 function getRef(row){ return findVal(row,['reference','referentie']); }
 function getBatch(row){ const v=findVal(row,['batchnumber','batchnummer','partijnummer','partij']); return v==null?'':String(v).trim(); }
 function getRemainder(row){ const v=findVal(row,['deliverremainder','remainder','televerenrestant','restant','resterend']); return v==null?null:Number(v); }
+function getSO(row){ return findVal(row,['salesorder','salesorderid','verkooporder']); }
 
 function parse8(s){ const y=+s.slice(0,4),mo=+s.slice(4,6),da=+s.slice(6,8); if(mo<1||mo>12||da<1||da>31) return null; const d=new Date(y,mo-1,da); d.setHours(0,0,0,0); return isNaN(d)?null:d; }
 function parseBatch(batch){
@@ -241,12 +270,13 @@ function readFile(file,cb){ const r=new FileReader(); r.onload=e=>{ try{ const w
 
 document.getElementById('lpFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; readFile(f,rows=>{ lpRows=rows; const el=document.getElementById('lpFileName'); el.textContent=f.name+' — '+rows.length+' regels'; el.classList.add('loaded'); analyze(); }); });
 document.getElementById('poFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; readFile(f,rows=>{ poRows=rows; const el=document.getElementById('poFileName'); el.textContent=f.name+' — '+rows.length+' regels'; el.classList.add('loaded'); analyze(); }); });
+document.getElementById('soFile').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; readFile(f,rows=>{ soRows=rows; const el=document.getElementById('soFileName'); el.textContent=f.name+' — '+rows.length+' regels'; el.classList.add('loaded'); analyze(); }); });
 document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Number(e.target.value)||0; analyze(); });
 document.getElementById('search').addEventListener('input',analyze);
 document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
 
-let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5}};
-const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2};
+let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4,crossdockSO:3.5},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4,crossdockSO:0.6},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5,crossdockSO:0.6}};
+const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2, crossdockSO:4.0};
 const CEC_SUM=Object.values(CEC_DEFAULT).reduce((a,b)=>a+b,0);
 const CEC_KEY='cec_brain_v1';
 function cecLoad(){ try{ const b=JSON.parse(localStorage.getItem(CEC_KEY)); if(b&&b.weights){ for(const k in CEC_DEFAULT) if(!(k in b.weights)) b.weights[k]=CEC_DEFAULT[k]; return b; } }catch(e){} return {weights:Object.assign({},CEC_DEFAULT), cases:0, log:[]}; }
@@ -259,9 +289,10 @@ function cecFeatures(){
   const itemHasBatch={}; lpRows.forEach(r=>{ const it=getItem(r); if(it==null) return; const pb=parseBatch(getBatch(r)); if(!(it in itemHasBatch)) itemHasBatch[it]=false; if(pb.hasDate) itemHasBatch[it]=true; });
   const byPoItem={}; lpRows.forEach(r=>{ const po=getPO(r),it=getItem(r); if(po==null||it==null) return; const k=po+'||'+it; if(!byPoItem[k]) byPoItem[k]={total:0}; byPoItem[k].total+=(getQty(r)||0); });
   const poIndex={}; if(poRows) poRows.forEach(r=>{ const po=getPO(r),it=getItem(r); if(po==null||it==null) return; poIndex[po+'||'+it]=r; });
+  const soByItem={}; if(soRows) soRows.forEach(r=>{ const it=getItem(r); if(it==null) return; const so=getSO(r); (soByItem[it]=soByItem[it]||[]).push(so); });
   return lpRows.map((r,idx)=>{
     const pb=parseBatch(getBatch(r)); const it=getItem(r); const po=getPO(r);
-    const f={dupRef:0,expired:0,expirySoon:0,noDateInconsistent:0,noDate:0,emptyBatch:0,overdelivery:0};
+    const f={dupRef:0,expired:0,expirySoon:0,noDateInconsistent:0,noDate:0,emptyBatch:0,overdelivery:0,crossdockSO:0};
     const reasons=[]; let pct=null; let days=null;
     if(pb.hasDate&&pb.date){ days=Math.round((pb.date-TODAY)/DAY);
       if(days<=0){ f.expired=1; reasons.push('batch vervallen ('+fmtDate(pb.date)+')'); }
@@ -269,7 +300,7 @@ function cecFeatures(){
     } else if(pb.empty){ f.emptyBatch=1; reasons.push('geen batch ingevuld'); if(itemHasBatch[it]){ f.noDateInconsistent=1; reasons.push('item heeft elders wel een batch'); } }
     else { f.noDate=1; reasons.push('batch zonder datum ('+pb.raw+')'); if(itemHasBatch[it]){ f.noDateInconsistent=1; reasons.push('item heeft elders wel een datum'); } }
     const ref=getRef(r); if(ref!=null&&refCount[ref]>1){ f.dupRef=1; reasons.push('referentie komt '+refCount[ref]+'x voor'); }
-    const pr=poIndex[po+'||'+it]; if(pr){ const rem=getRemainder(pr); const tot=byPoItem[po+'||'+it].total; if(rem!=null&&rem>0){ pct=((tot-rem)/rem)*100; if(pct>0){ f.overdelivery=Math.max(0,Math.min(1,pct/100)); reasons.push('levering '+pct.toFixed(0)+'% t.o.v. remainder'); } } }
+    const pr=poIndex[po+'||'+it]; if(pr){ const rem=getRemainder(pr); const tot=byPoItem[po+'||'+it].total; if(rem!=null&&rem>0){ pct=((tot-rem)/rem)*100; if(pct>0){ f.overdelivery=Math.max(0,Math.min(1,pct/100)); reasons.push('levering '+pct.toFixed(0)+'% t.o.v. remainder'); } } } if(soByItem[it]&&soByItem[it].length){ f.crossdockSO=1; const sos=soByItem[it].filter(function(s){return s;}); reasons.push('open sales order'+(sos.length?' ('+sos.slice(0,2).join(', ')+')':'')+' → crossdock houdt werk vast'); }
     const fm=CEC_FOCUS[CEC_focus]||null; let score=0; for(const k in f){ const mult=fm?(fm[k]||1):1; score+=brain.weights[k]*f[k]*mult; }
     return {id:idx,row:r,f:f,score:score,reasons:reasons,pct:pct,days:days};
   });
@@ -324,7 +355,7 @@ function cecToast(msg){ let t=document.getElementById('cecToast'); if(!t){ t=doc
 function cecRenderBrain(){
   const box=document.getElementById('brainPanel'); if(!box) return; const w=brain.weights;
   const max=Math.max.apply(null,Object.keys(w).map(function(k){return w[k];}));
-  const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery'};
+  const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery',crossdockSO:'Open SO / crossdock'};
   let h='<div class="results-block"><h2>&#129504; Wat de tool geleerd heeft <span class="hint">&mdash; '+(brain.cases||0)+' opgeloste container'+((brain.cases===1)?'':'s')+' &middot; lokaal op deze PC</span></h2>';
   h+='<div style="font-size:13px">';
   for(const k in labels){ const pw=Math.round(100*w[k]/max); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:230px;color:var(--muted)">'+labels[k]+'</span><span style="flex:1;background:var(--panel-2);border-radius:4px;height:10px;overflow:hidden"><span style="display:block;height:10px;width:'+pw+'%;background:var(--dib)"></span></span><span class="mono" style="width:44px;text-align:right">'+w[k].toFixed(2)+'</span></div>'; }
@@ -377,17 +408,21 @@ function analyze(){
     .filter(g=>!ft||normKey(g.it).includes(ft)||normKey(g.po).includes(ft))
     .sort((a,b)=>(b.pct||0)-(a.pct||0));
 
+  const soByItem={}; if(soRows) soRows.forEach(row=>{ const it=getItem(row); if(it==null) return; const so=getSO(row); (soByItem[it]=soByItem[it]||[]).push(so); });
+  const crossSeen={}; let crossGroups=[];
+  lpRows.forEach(row=>{ const it=getItem(row); if(it==null||!soByItem[it]) return; if(!matchFt(row)) return; if(crossSeen[it]) return; crossSeen[it]=true; crossGroups.push({it:it, po:getPO(row), lp:getLP(row), sos:soByItem[it].filter(function(s){return s;})}); });
+  document.getElementById('statCross').textContent=crossGroups.length;
   document.getElementById('statDup').textContent=dupGroups.length;
   document.getElementById('statExpired').textContent=expired.length;
   document.getElementById('statNoDate').textContent=noDate.length;
   document.getElementById('statOver').textContent=overGroups.length;
   document.getElementById('statTotal').textContent=lpRows.length;
 
-  render(dupGroups,expired,noDate,overGroups);
+  render(dupGroups,expired,noDate,overGroups,crossGroups);
   renderDiagnosis();
 }
 
-function render(dupGroups,expired,noDate,overGroups){
+function render(dupGroups,expired,noDate,overGroups,crossGroups){
   let h='';
 
   h+='<div class="results-block"><h2>&#128308; Duplicate references <span class="hint">&mdash; zelfde regel op meerdere LP\'s</span></h2>';
@@ -418,6 +453,14 @@ function render(dupGroups,expired,noDate,overGroups){
   else if(!overGroups.length) h+='<div class="no-flags">Geen regels boven de tolerantie.</div>';
   else{ h+='<table><thead><tr><th>PO</th><th>Item</th><th class="mono">Aanwezig</th><th class="mono">Deliver remainder</th><th class="mono">Overdelivery</th></tr></thead><tbody>';
     overGroups.forEach(g=>{ h+=`<tr class="row-amber"><td class="mono">${g.po}</td><td class="mono">${g.it}</td><td class="mono">${g.total}</td><td class="mono">${g.rem}</td><td><span class="badge amber">${g.pct.toFixed(0)}%</span></td></tr>`; });
+    h+='</tbody></table>'; }
+  h+='</div>';
+
+  h+='<div class="results-block"><h2>&#128721; Open SO / crossdock <span class="hint">&mdash; open sales order op een container-item</span></h2>';
+  if(!soRows) h+='<div class="no-flags" style="color:var(--muted);background:var(--panel-2);border-color:var(--line);">Upload de Open sales order lines export om crossdock-botsingen te vinden.</div>';
+  else if(!crossGroups||!crossGroups.length) h+='<div class="no-flags">Geen open sales orders op container-items.</div>';
+  else{ h+='<table><thead><tr><th>Item</th><th>PO</th><th class="mono">License plate</th><th>Open sales order(s)</th></tr></thead><tbody>';
+    crossGroups.forEach(function(g){ h+='<tr class="row-red"><td class="mono">'+g.it+'</td><td class="mono">'+(g.po||'&mdash;')+'</td><td class="mono">'+(g.lp||'&mdash;')+'</td><td class="mono">'+(g.sos&&g.sos.length?g.sos.join(', '):'&mdash;')+'</td></tr>'; });
     h+='</tbody></table>'; }
   h+='</div>';
 
