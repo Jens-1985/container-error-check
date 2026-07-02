@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.2.0</span>
+    <span class="version">v1.2.1</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -182,6 +182,11 @@
       <p>Upload de License plate / Packaging export om te starten.</p>
     </div>
 
+    <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--dib); border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
+      <b style="color:var(--dib-glow)">&#8505; Andere foutmelding: Deadlock op Purchase order versions</b><br>
+      Zie je <i>"Cannot edit a record in Purchase order versions (PurchTableVersion) &mdash; Deadlock"</i>? Dat is <b>geen container-inhoudsprobleem</b> &mdash; zoek er dus niet voor in de export. Het is een tijdelijke database-lock, meestal doordat een batchjob (bv. CLIPS / <code>srvazr_clips</code>) en een gebruiker tegelijk aan dezelfde PO werken.<br>
+      <b>Oplossing:</b> zet de order-status terug (<b>reset status</b>) of probeer de actie opnieuw &mdash; dan is het opgelost. Blijft het terugkomen op dezelfde PO, meld het.
+    </div>
     <footer class="note">
       <b>Duplicate references</b> &mdash; meerdere license plates die naar dezelfde besteloregel wijzen. Vaak de oorzaak van "inventory dimensions on load lines cannot be changed because work has been created".<br>
       <b>Batch vervallen</b> &mdash; batchnummer met formaat <code>[land][JJJJMMDD]</code> waarvan de datum vandaag of eerder is (bv. <code>DE20260630</code> op 1/07/2026). Komt al over datum binnen &rarr; error.<br>
