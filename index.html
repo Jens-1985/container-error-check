@@ -100,17 +100,38 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.5.0</span>
+    <span class="version">v1.6.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
         <h1>Container Error Check</h1>
-        <p>Container in error? Upload je exports en de tool spoort automatisch de gekende oorzaken op: duplicate references, ontbrekende of vervallen batches, en overdelivery. Groeit mee met elke nieuwe foutsoort die je tegenkomt.</p>
+        <p>Container in error? Upload je exports en de tool spoort automatisch de gekende oorzaken op: duplicate references, vervallen batches, batches zonder datum, overdelivery, open SO / crossdock en deadlocks. Groeit mee met elke nieuwe foutsoort die je tegenkomt.</p>
       </div>
     </div>
   </header>
 
   <main>
+    <details style="margin:0 0 18px;background:var(--panel);border:1px solid var(--dib);border-radius:10px;padding:0">
+      <summary style="cursor:pointer;padding:12px 18px;font-weight:700;color:var(--dib-glow);font-size:13.5px;list-style-position:inside">&#129517; Waar ga ik kijken? &mdash; vaste zoekroutine (ook zonder exports)</summary>
+      <div style="padding:2px 18px 14px;font-size:12.5px;line-height:1.65">
+        <ol style="margin:6px 0 0;padding-left:18px">
+          <li><b>Lees eerst de foutmelding</b> &mdash; Licenseplate receiving sessions &rarr; container met status <code>Errored</code> &rarr; open de log (integrationlog). Kies de melding hieronder bij <i>"Welke foutmelding?"</i> zodat de tool gericht zoekt.</li>
+          <li><b>Deadlock (PurchTableVersion)?</b> &rarr; stop met zoeken: geen datafout. <b>Reset status</b> + opnieuw proberen, klaar.</li>
+          <li><b>"Work has been created"?</b> Kijk in deze volgorde:
+            <ul style="margin:4px 0;padding-left:16px">
+              <li><b>All work</b> &rarr; filter op load-/shipmentnummer &rarr; <b>Cancel work</b> (staat het <i>In process</i>: load splitsen).</li>
+              <li><b>Dubbele referenties</b> &rarr; upload export 1 hieronder, de tool vindt ze meteen.</li>
+              <li><b>Marking</b> &rarr; PO-regel &rarr; Inventory &rarr; Marking &rarr; verwijderen.</li>
+              <li><b>Open SO / crossdock</b> op een container-item &rarr; upload export 3, de tool checkt het.</li>
+            </ul></li>
+          <li><b>Batch-fout?</b> &rarr; formaat <code>[land][JJJJMMDD]</code>: vervallen (datum &le; vandaag), enkel landcode (bv. <code>DE</code>) of leeg. Export 1 uploaden = automatisch gevonden.</li>
+          <li><b>Overdelivery?</b> &rarr; geleverde hoeveelheid vs. <b>Deliver remainder</b> &mdash; upload export 2 voor het exacte %.</li>
+          <li><b>Fout stuk gevonden?</b> &rarr; verwijder die regel uit de container &rarr; <b>reset containerstatus</b> &rarr; retry. De rest van de container kan gewoon uitgepakt worden.</li>
+        </ol>
+        <span class="editable" style="display:block;margin-top:8px">&#8627; Kloppen de schermnamen niet exact met jullie omgeving? Zeg het, dan pas ik de routine aan.</span>
+      </div>
+    </details>
+
     <div class="upload-grid">
 
       <div class="upload-card">
