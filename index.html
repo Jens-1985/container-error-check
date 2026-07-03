@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.10.1</span>
+    <span class="version">v1.11.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -150,6 +150,7 @@
             <li>Open de <b>Licenseplate receiving sessions</b> &rarr; zoek de container met status <code>Errored</code>.</li>
             <li>Open de sessie &rarr; <b>Packaging structure details</b> &rarr; tabblad <b>Items</b>.</li>
             <li>Klik rechtsboven op <b>Options &rarr; Export to Excel</b> (of het Excel-icoon op het grid).</li>
+            <li style="margin-top:4px"><b>Alternatief (nog krachtiger):</b> open de table browser &mdash; jullie omgevings-URL + <code>&amp;mi=CgkTableBrowser</code> &rarr; tabel <b>WHSLoadLine</b> &rarr; filter op <b>LoadId</b> &rarr; Export to Excel. Die export bevat <b>WorkCreatedQty</b>: de tool ziet dan meteen welke regels vastgepind zijn door werk.</li>
           </ol>
           <span class="editable">&#8627; Klopt dit pad niet exact? Zeg het me, dan pas ik deze uitleg aan naar jouw stappen.</span>
         </div>
@@ -278,7 +279,8 @@
       <b>Belangrijk inzicht:</b> lukt <b>manueel ontvangen z&oacute;nder foutmelding</b>, dan is de data in orde en zit de fout in de <b>receiving-sessie/load zelf</b> (corrupte status, bv. na een wave of het verwijderen van regels). Dan vind je in de exports niets &mdash; hoe lang je ook zoekt. Dat is geen falen: stoppen met zoeken is dan de juiste beslissing.
       <ol style="margin:6px 0 0; padding-left:18px">
         <li><b>Cancel al het werk</b> van de wave/load (All work) &rarr; reset &rarr; retry. Max 2 pogingen.</li>
-        <li>Nog fout? Toont de sessie oude/verwijderde regels &rarr; <b>verwijder de receiving-sessie</b> en start een nieuwe voor de container.</li>
+                <li>Kijk in <b>WHSLoadLine</b> via de table browser (omgevings-URL + <code>&amp;mi=CgkTableBrowser</code>, filter op LoadId): staan er <b>spookregels</b> van verwijderde LP&apos;s? <b>WorkCreatedQty &gt; 0</b> op veel regels = de load zit massaal vast. Exporteer en gooi in vak 1 &mdash; de tool leest het rechtstreeks.</li>
+<li>Nog fout? Toont de sessie oude/verwijderde regels &rarr; <b>verwijder de receiving-sessie</b> en start een nieuwe voor de container.</li>
         <li><b>Deadline of xdock-stukken nodig?</b> &rarr; ontvang <b>manueel</b>. Tijdrovend, maar werkt vrijwel altijd zonder fouten &mdash; de snelste betrouwbare uitweg.</li>
         <li>Noteer <b>sessie-ID + wave-nummer + PO&apos;s</b> en meld het aan IT/CLIPS-beheer: een sessie die na cancel + reset blijft foutlopen is een <b>procesbug</b>, geen gebruikersfout.</li>
       </ol>
