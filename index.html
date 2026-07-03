@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.7.1</span>
+    <span class="version">v1.7.2</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -380,6 +380,7 @@ function renderDiagnosis(){
   const top=cand[0]; const conf=cecConf(cand);
   let h='<div class="results-block" style="border:2px solid var(--dib)"><h2>&#129504; Slimme diagnose <span class="hint">&mdash; leert van jullie feedback</span></h2>';
   h+='<div style="padding:6px 2px 10px"><b>Meest waarschijnlijke oorzaak</b> &nbsp; <span class="badge amber">zekerheid '+conf+'%</span></div>';
+  if(conf<=60){ h+='<div class="hint" style="margin:-2px 0 8px;line-height:1.5">&#9432; Waarom niet zekerder? Meerdere items hebben hier <b>exact dezelfde signalen</b> — uit deze export alleen valt het foute item niet te onderscheiden. '+(soRows?'':'Upload <b>export 3</b> (Open sales order lines) en ')+'kies bovenaan de <b>juiste foutmelding</b>, dan kan de tool het er beter uitpikken. Weet je het zelf al? Klik dan gewoon op het juiste item in de volledige ranglijst.</div>'; }
   h+='<table><tbody>';
   h+='<tr><td style="width:130px;color:var(--muted)">License plate</td><td class="mono">'+(getLP(top.row)||'&mdash;')+'</td></tr>';
   h+='<tr><td style="color:var(--muted)">PO</td><td class="mono">'+(getPO(top.row)||'&mdash;')+'</td></tr>';
