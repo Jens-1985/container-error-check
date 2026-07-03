@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.9.0</span>
+    <span class="version">v1.10.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -122,6 +122,7 @@
           <li><b>"Work has been created"?</b> Kijk in deze volgorde:
             <ul style="margin:4px 0;padding-left:16px">
               <li><b>All work</b> &rarr; filter op load-/shipmentnummer &rarr; <b>Cancel work</b> (staat het <i>In process</i>: load splitsen).</li>
+              <li>Kolom <b>Work created quantity</b> in het Items-scherm van de sessie toont meteen w&eacute;lke regel het werk heeft &mdash; zit ook in export 1, de tool vlagt het automatisch.</li>
               <li><b>Dubbele referenties</b> &rarr; upload export 1 hieronder, de tool vindt ze meteen.</li>
               <li><b>Marking</b> &rarr; PO-regel &rarr; Inventory &rarr; Marking &rarr; verwijderen.</li>
               <li><b>Open SO / crossdock</b> op een container-item &rarr; upload export 3, de tool checkt het.</li>
@@ -306,6 +307,7 @@ function getLP(row){ return findVal(row,['licenseplate','kentekenplaat','kenteke
 function getPO(row){ return findVal(row,['purchaseorder','inkooporder','bestelling']); }
 function getItem(row){ return findVal(row,['itemnumber','artikelnummer','artikel']); }
 function getQty(row){ const v=findVal(row,['quantity','aantal','hoeveelheid']); return v==null?null:Number(v); }
+function getWorkQty(row){ const v=findVal(row,['workcreatedquantity','workcreatedqty']); const p=findVal(row,['putawayworkcreatedquantity','putawayworkcreatedqty']); function num(x){ if(x==null) return 0; const n=Number(String(x).replace(',','.')); return isNaN(n)?0:n; } return num(v)+num(p); }
 function getRef(row){ return findVal(row,['reference','referentie']); }
 function getBatch(row){ const v=findVal(row,['batchnumber','batchnummer','partijnummer','partij']); return v==null?'':String(v).trim(); }
 function getRemainder(row){ const v=findVal(row,['deliverremainder','remainder','televerenrestant','restant','resterend']); return v==null?null:Number(v); }
@@ -334,8 +336,8 @@ document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Num
 document.getElementById('search').addEventListener('input',analyze);
 document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
 
-let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={reserved:{crossdockSO:3.5,dupRef:0.8,expired:0.4,expirySoon:0.4,noDate:0.4,emptyBatch:0.4,noDateInconsistent:0.4,overdelivery:0.4},workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4,crossdockSO:3.5},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4,crossdockSO:0.6},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5,crossdockSO:0.6}};
-const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2, crossdockSO:4.0};
+let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={reserved:{crossdockSO:3.5,workCreated:2,dupRef:0.8,expired:0.4,expirySoon:0.4,noDate:0.4,emptyBatch:0.4,noDateInconsistent:0.4,overdelivery:0.4},workcreated:{workCreated:3.5,dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4,crossdockSO:3.5},batch:{workCreated:0.5,expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4,crossdockSO:0.6},overdelivery:{workCreated:0.5,overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5,crossdockSO:0.6}};
+const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2, crossdockSO:4.0, workCreated:4.0};
 const CEC_SUM=Object.values(CEC_DEFAULT).reduce((a,b)=>a+b,0);
 const CEC_KEY='cec_brain_v1';
 function cecLoad(){ try{ const b=JSON.parse(localStorage.getItem(CEC_KEY)); if(b&&b.weights){ for(const k in CEC_DEFAULT) if(!(k in b.weights)) b.weights[k]=CEC_DEFAULT[k]; return b; } }catch(e){} return {weights:Object.assign({},CEC_DEFAULT), cases:0, log:[]}; }
@@ -351,14 +353,14 @@ function cecFeatures(){
   const soByItem={}; if(soRows) soRows.forEach(r=>{ const it=getItem(r); if(it==null) return; const so=getSO(r); (soByItem[it]=soByItem[it]||[]).push(so); });
   return lpRows.map((r,idx)=>{
     const pb=parseBatch(getBatch(r)); const it=getItem(r); const po=getPO(r);
-    const f={dupRef:0,expired:0,expirySoon:0,noDateInconsistent:0,noDate:0,emptyBatch:0,overdelivery:0,crossdockSO:0};
+    const f={dupRef:0,expired:0,expirySoon:0,noDateInconsistent:0,noDate:0,emptyBatch:0,overdelivery:0,crossdockSO:0,workCreated:0};
     const reasons=[]; let pct=null; let days=null;
     if(pb.hasDate&&pb.date){ days=Math.round((pb.date-TODAY)/DAY);
       if(days<=0){ f.expired=1; reasons.push('batch vervallen ('+fmtDate(pb.date)+')'); }
       else{ f.expirySoon=Math.max(0,Math.min(1,(45-days)/45)); if(f.expirySoon>0) reasons.push('vervalt over '+days+' dag'+(days===1?'':'en')); }
     } else if(pb.empty){ f.emptyBatch=1; reasons.push('geen batch ingevuld'); if(itemHasBatch[it]){ f.noDateInconsistent=1; reasons.push('item heeft elders wel een batch'); } }
     else { f.noDate=1; reasons.push('batch zonder datum ('+pb.raw+')'); if(itemHasBatch[it]){ f.noDateInconsistent=1; reasons.push('item heeft elders wel een datum'); } }
-    const ref=getRef(r); if(ref!=null&&refCount[ref]>1){ f.dupRef=1; reasons.push('referentie komt '+refCount[ref]+'x voor'); }
+    const ref=getRef(r); if(ref!=null&&refCount[ref]>1){ f.dupRef=1; reasons.push('referentie komt '+refCount[ref]+'x voor'); } const wq=getWorkQty(r); if(wq>0){ f.workCreated=1; reasons.push('werk al aangemaakt voor deze regel (qty '+wq+')'); }
     const pr=poIndex[po+'||'+it]; if(pr){ const rem=getRemainder(pr); const tot=byPoItem[po+'||'+it].total; if(rem!=null&&rem>0){ pct=((tot-rem)/rem)*100; if(pct>0){ f.overdelivery=Math.max(0,Math.min(1,pct/100)); reasons.push('levering '+pct.toFixed(0)+'% t.o.v. remainder'); } } } if(soByItem[it]&&soByItem[it].length){ f.crossdockSO=1; const sos=soByItem[it].filter(function(s){return s;}); reasons.push('open sales order'+(sos.length?' ('+sos.slice(0,2).join(', ')+')':'')+' → crossdock houdt werk vast'); }
     const fm=CEC_FOCUS[CEC_focus]||null; let score=0; for(const k in f){ const mult=fm?(fm[k]||1):1; score+=brain.weights[k]*f[k]*mult; }
     return {id:idx,row:r,f:f,score:score,reasons:reasons,pct:pct,days:days};
@@ -370,7 +372,7 @@ function cecConf(cand){ if(!cand.length) return 0; const s1=cand[0].score; const
 let CEC_planText='';
 function cecActionTip(c){
   const f=c.f;
-  if(f.dupRef) return 'Duplicate reference: meerdere license plates wijzen naar dezelfde bestelorderregel. Verwijder de dubbele LP (hou de juiste) en check bestaand werk (All work → Cancel work).';
+  if(f.workCreated&&!f.dupRef&&!f.crossdockSO) return 'Er is al werk aangemaakt voor deze regel (zie kolom Work created quantity): All work &rarr; filter op load/shipment &rarr; Cancel work; daarna reset + retry. Pas dan kan je de regel aanpassen of verwijderen.'; if(f.dupRef) return 'Duplicate reference: meerdere license plates wijzen naar dezelfde bestelorderregel. Verwijder de dubbele LP (hou de juiste) en check bestaand werk (All work → Cancel work).';
   if(f.crossdockSO) return 'Open sales order op dit item: crossdock pint de inbound en maakt werk aan. Annuleer eerst het werk (All work → Cancel work) of handel de SO af; blijft het blokkeren, haal dan deze regel eruit. Check ook de reservering: SO-regel → Inventory → Reservation → verwijderen.';
   if(f.expired) return 'Batch is vervallen: haal deze LP uit de container (of corrigeer de batchdatum als het een tikfout is).';
   if(f.noDateInconsistent||f.noDate||f.emptyBatch) return 'Batch zonder (geldige) datum: haal deze LP eruit of vul de juiste batch in.';
@@ -448,7 +450,7 @@ function cecToast(msg){ let t=document.getElementById('cecToast'); if(!t){ t=doc
 function cecRenderBrain(){
   const box=document.getElementById('brainPanel'); if(!box) return; const w=brain.weights;
   const max=Math.max.apply(null,Object.keys(w).map(function(k){return w[k];}));
-  const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery',crossdockSO:'Open SO / crossdock'};
+  const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery',crossdockSO:'Open SO / crossdock',workCreated:'Werk al aangemaakt (work created qty)'};
   let h='<div class="results-block"><h2>&#129504; Wat de tool geleerd heeft <span class="hint">&mdash; '+(brain.cases||0)+' opgeloste container'+((brain.cases===1)?'':'s')+' &middot; '+(brain.unsolved||0)+' onopgelost &middot; lokaal op deze PC</span></h2>';
   h+='<div style="font-size:13px">';
   for(const k in labels){ const pw=Math.round(100*w[k]/max); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:230px;color:var(--muted)">'+labels[k]+'</span><span style="flex:1;background:var(--panel-2);border-radius:4px;height:10px;overflow:hidden"><span style="display:block;height:10px;width:'+pw+'%;background:var(--dib)"></span></span><span class="mono" style="width:44px;text-align:right">'+w[k].toFixed(2)+'</span></div>'; }
