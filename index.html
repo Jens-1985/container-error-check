@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.7.0</span>
+    <span class="version">v1.7.1</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -339,7 +339,7 @@ function cecFeatures(){
   });
 }
 function computeCandidates(){ if(!lpRows) return []; return cecFeatures().filter(function(c){return c.score>0 && !CEC_dismissed.has(c.id);}).sort((a,b)=>b.score-a.score); }
-function cecConf(cand){ if(!cand.length) return 0; const s1=cand[0].score; const s2=cand[1]?cand[1].score:0; if(s2<=0) return 90; return Math.round(Math.max(50,Math.min(99, 100*s1/(s1+s2)))); }
+function cecConf(cand){ if(!cand.length) return 0; const s1=cand[0].score; const topItem=getItem(cand[0].row); let s2=0; for(let i=1;i<cand.length;i++){ if(getItem(cand[i].row)!==topItem){ s2=cand[i].score; break; } } if(s2<=0) return 95; return Math.round(Math.max(50,Math.min(99, 100*s1/(s1+s2)))); }
 
 let CEC_planText='';
 function cecActionTip(c){
@@ -384,6 +384,7 @@ function renderDiagnosis(){
   h+='<tr><td style="width:130px;color:var(--muted)">License plate</td><td class="mono">'+(getLP(top.row)||'&mdash;')+'</td></tr>';
   h+='<tr><td style="color:var(--muted)">PO</td><td class="mono">'+(getPO(top.row)||'&mdash;')+'</td></tr>';
   h+='<tr><td style="color:var(--muted)">Item</td><td class="mono">'+(getItem(top.row)||'&mdash;')+'</td></tr>';
+  const sameN=cand.filter(function(c){return getItem(c.row)===getItem(top.row);}).length; if(sameN>1) h+='<tr><td style="color:var(--muted)">Betrokken LP\'s</td><td>'+sameN+' license plates van dit item (zelfde oorzaak)</td></tr>';
   h+='<tr><td style="color:var(--muted)">Waarom</td><td>'+top.reasons.join('; ')+'</td></tr>';
   h+='</tbody></table>';
   h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <button onclick="cecReject('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#7A2B2B;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10008; Dit was de oorzaak niet</button><div style="color:var(--muted);margin-top:6px">Of markeer het juiste in de volledige ranglijst hieronder.</div></div>';
