@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.8.0</span>
+    <span class="version">v1.9.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -129,6 +129,7 @@
           <li><b>Batch-fout?</b> &rarr; formaat <code>[land][JJJJMMDD]</code>: vervallen (datum &le; vandaag), enkel landcode (bv. <code>DE</code>) of leeg. Export 1 uploaden = automatisch gevonden.</li>
           <li><b>Overdelivery?</b> &rarr; geleverde hoeveelheid vs. <b>Deliver remainder</b> &mdash; upload export 2 voor het exacte %.</li>
           <li><b>Fout stuk gevonden?</b> &rarr; verwijder die regel uit de container &rarr; <b>reset containerstatus</b> &rarr; retry. De rest van de container kan gewoon uitgepakt worden.</li>
+          <li><b>Niets gevonden en blijft het foutlopen?</b> &rarr; stop met zoeken in de data. Lukt <b>manueel ontvangen zonder fout</b>, dan is de data OK en is de <b>sessie zelf corrupt</b> &mdash; volg de escalatieladder onderaan.</li>
         </ol>
         <span class="editable" style="display:block;margin-top:8px">&#8627; Kloppen de schermnamen niet exact met jullie omgeving? Zeg het, dan pas ik de routine aan.</span>
       </div>
@@ -270,6 +271,19 @@
       </ol>
       Zie je er ook <i>"Some quantity for item ... was not released because not all above location dimensions are known"</i> bij? Zelfde wave-probleem &mdash; verdwijnt meestal mee na cancel work + reset.
     </div>
+    <details id="escaladder" style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #FFC46B; border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
+      <summary style="cursor:pointer;font-weight:700;color:#FFC46B">&#129699; Escalatieladder &mdash; als je de oorzaak niet vindt</summary>
+      <div style="margin-top:8px">
+      <b>Belangrijk inzicht:</b> lukt <b>manueel ontvangen z&oacute;nder foutmelding</b>, dan is de data in orde en zit de fout in de <b>receiving-sessie/load zelf</b> (corrupte status, bv. na een wave of het verwijderen van regels). Dan vind je in de exports niets &mdash; hoe lang je ook zoekt. Dat is geen falen: stoppen met zoeken is dan de juiste beslissing.
+      <ol style="margin:6px 0 0; padding-left:18px">
+        <li><b>Cancel al het werk</b> van de wave/load (All work) &rarr; reset &rarr; retry. Max 2 pogingen.</li>
+        <li>Nog fout? Toont de sessie oude/verwijderde regels &rarr; <b>verwijder de receiving-sessie</b> en start een nieuwe voor de container.</li>
+        <li><b>Deadline of xdock-stukken nodig?</b> &rarr; ontvang <b>manueel</b>. Tijdrovend, maar werkt vrijwel altijd zonder fouten &mdash; de snelste betrouwbare uitweg.</li>
+        <li>Noteer <b>sessie-ID + wave-nummer + PO&apos;s</b> en meld het aan IT/CLIPS-beheer: een sessie die na cancel + reset blijft foutlopen is een <b>procesbug</b>, geen gebruikersfout.</li>
+      </ol>
+      <b>Pre-check tip:</b> containers met <b>xdock-items</b> (open SO) zijn gevoelig voor dit alles. Haal export 1 + 3 door de tool <b>v&oacute;&oacute;r</b> je begint met ontvangen: licht "Open SO / crossdock" op, verwacht dan waves/werk en check eerst de reserveringen.
+      </div>
+    </details>
     <footer class="note">
       <b>Duplicate references</b> &mdash; meerdere license plates die naar dezelfde besteloregel wijzen. Vaak de oorzaak van "inventory dimensions on load lines cannot be changed because work has been created".<br>
       <b>Batch vervallen</b> &mdash; batchnummer met formaat <code>[land][JJJJMMDD]</code> waarvan de datum vandaag of eerder is (bv. <code>DE20260630</code> op 1/07/2026). Komt al over datum binnen &rarr; error.<br>
@@ -400,7 +414,7 @@ function renderDiagnosis(){
   const sameN=cand.filter(function(c){return getItem(c.row)===getItem(top.row);}).length; if(sameN>1) h+='<tr><td style="color:var(--muted)">Betrokken LP\'s</td><td>'+sameN+' license plates van dit item (zelfde oorzaak)</td></tr>';
   h+='<tr><td style="color:var(--muted)">Waarom</td><td>'+top.reasons.join('; ')+'</td></tr>';
   h+='</tbody></table>';
-  h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <button onclick="cecReject('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#7A2B2B;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10008; Dit was de oorzaak niet</button><div style="color:var(--muted);margin-top:6px">Of markeer het juiste in de volledige ranglijst hieronder.</div></div>';
+  h+='<div style="margin-top:10px;padding:8px 10px;background:var(--panel-2);border-radius:8px">Klopt dit? <button onclick="cecLearn('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#2E7D32;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10004; Ja, dit was de oorzaak</button> <button onclick="cecReject('+top.id+')" style="margin-left:6px;padding:6px 12px;border:0;border-radius:6px;background:#7A2B2B;color:#fff;cursor:pointer;font:inherit;font-weight:600">&#10008; Dit was de oorzaak niet</button> <button onclick="cecUnsolved()" style="margin-left:6px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer;font:inherit;font-weight:600">&#10067; Oorzaak niet gevonden</button><div style="color:var(--muted);margin-top:6px">Of markeer het juiste in de volledige ranglijst hieronder.</div></div>';
   h+=cecActionPlan(cand);
   h+='</div>'; box.innerHTML=h;
 }
@@ -429,12 +443,13 @@ function cecLearn(id){
   cecToast('Geleerd! De tool weet nu beter waar te kijken (' + brain.cases + ' opgeloste containers).');
 }
 function cecReject(id){ const cand=CEC_lastCand; const c=cand.find(function(x){return x.id===id;}); if(c){ const lr=0.25; for(const k in brain.weights){ if((c.f[k]||0)>0) brain.weights[k]-=lr*c.f[k]; } for(const k in brain.weights){ if(brain.weights[k]<0.1) brain.weights[k]=0.1; } let sum=0; for(const k in brain.weights) sum+=brain.weights[k]; const sc=CEC_SUM/sum; for(const k in brain.weights) brain.weights[k]*=sc; cecSave(); } CEC_dismissed.add(id); renderDiagnosis(); cecToast('Ok, weggelegd. De volgende meest waarschijnlijke wordt getoond.'); }
+function cecUnsolved(){ brain.unsolved=(brain.unsolved||0)+1; brain.log=brain.log||[]; brain.log.push({t:Date.now(), focus:CEC_focus, unsolved:true}); cecSave(); cecRenderBrain(); var el=document.getElementById('escaladder'); if(el){ el.setAttribute('open',''); el.scrollIntoView({behavior:'smooth'}); } cecToast('Genoteerd als onopgelost. Tip: lukt manueel ontvangen zonder fout, dan is de data OK en is de sessie zelf corrupt - zie de escalatieladder.'); }
 function cecToast(msg){ let t=document.getElementById('cecToast'); if(!t){ t=document.createElement('div'); t.id='cecToast'; t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#161A20;color:#fff;padding:10px 16px;border-radius:8px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.3);font-weight:600;transition:opacity .4s'; document.body.appendChild(t);} t.textContent=msg; t.style.opacity='1'; clearTimeout(window.__cecT); window.__cecT=setTimeout(function(){t.style.opacity='0';},2800); }
 function cecRenderBrain(){
   const box=document.getElementById('brainPanel'); if(!box) return; const w=brain.weights;
   const max=Math.max.apply(null,Object.keys(w).map(function(k){return w[k];}));
   const labels={dupRef:'Duplicate reference',expired:'Batch vervallen',expirySoon:'Batch vervalt binnenkort',noDateInconsistent:'Batch mist datum (inconsistent)',noDate:'Batch zonder datum',emptyBatch:'Batch leeg',overdelivery:'Overdelivery',crossdockSO:'Open SO / crossdock'};
-  let h='<div class="results-block"><h2>&#129504; Wat de tool geleerd heeft <span class="hint">&mdash; '+(brain.cases||0)+' opgeloste container'+((brain.cases===1)?'':'s')+' &middot; lokaal op deze PC</span></h2>';
+  let h='<div class="results-block"><h2>&#129504; Wat de tool geleerd heeft <span class="hint">&mdash; '+(brain.cases||0)+' opgeloste container'+((brain.cases===1)?'':'s')+' &middot; '+(brain.unsolved||0)+' onopgelost &middot; lokaal op deze PC</span></h2>';
   h+='<div style="font-size:13px">';
   for(const k in labels){ const pw=Math.round(100*w[k]/max); h+='<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:230px;color:var(--muted)">'+labels[k]+'</span><span style="flex:1;background:var(--panel-2);border-radius:4px;height:10px;overflow:hidden"><span style="display:block;height:10px;width:'+pw+'%;background:var(--dib)"></span></span><span class="mono" style="width:44px;text-align:right">'+w[k].toFixed(2)+'</span></div>'; }
   h+='</div>';
