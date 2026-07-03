@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.7.2</span>
+    <span class="version">v1.8.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -118,6 +118,7 @@
           <li><b>Lees eerst de foutmelding</b> &mdash; Licenseplate receiving sessions &rarr; container met status <code>Errored</code> &rarr; open de log (integrationlog). Kies de melding hieronder bij <i>"Welke foutmelding?"</i> zodat de tool gericht zoekt.</li>
           <li><b>Deadlock (PurchTableVersion)?</b> &rarr; stop met zoeken: geen datafout. <b>Reset status</b> + opnieuw proberen, klaar.</li>
           <li><b>"Ordered reserved inventory exists"?</b> &rarr; er is een <b>reservering</b> tegen de inkomende (ordered) voorraad &mdash; bijna altijd een open SO. Ga naar de SO-regel &rarr; <b>Inventory &rarr; Reservation</b> &rarr; verwijder de reservering (of handel de SO af). Upload export 1 + 3 en de tool wijst het item + de SO aan.</li>
+          <li><b>"Cannot edit a record in Load details (WHSLoadLine)"?</b> &rarr; procesfout, geen datafout. Vaak na het verwijderen van LP's of door een wave. <b>All work</b> &rarr; filter op de wave/load uit de log &rarr; <b>Cancel work</b> &rarr; check Load details &rarr; reset + retry.</li>
           <li><b>"Work has been created"?</b> Kijk in deze volgorde:
             <ul style="margin:4px 0;padding-left:16px">
               <li><b>All work</b> &rarr; filter op load-/shipmentnummer &rarr; <b>Cancel work</b> (staat het <i>In process</i>: load splitsen).</li>
@@ -201,6 +202,7 @@
           <option value="batch">batch / vervaldatum-fout</option>
           <option value="overdelivery">overdelivery</option>
           <option value="deadlock">deadlock (PurchTableVersion)</option>
+          <option value="loadline">WHSLoadLine / record has never been selected</option>
         </select>
       </div>
       <span class="today-note" id="todayNote"></span>
@@ -257,6 +259,16 @@
 <b style="color:var(--dib-glow)">&#8505; Andere foutmelding: Deadlock op Purchase order versions</b><br>
       Zie je <i>"Cannot edit a record in Purchase order versions (PurchTableVersion) &mdash; Deadlock"</i>? Dat is <b>geen container-inhoudsprobleem</b> &mdash; zoek er dus niet voor in de export. Het is een tijdelijke database-lock, meestal doordat een batchjob (bv. CLIPS / <code>srvazr_clips</code>) en een gebruiker tegelijk aan dezelfde PO werken.<br>
       <b>Oplossing:</b> zet de order-status terug (<b>reset status</b>) of probeer de actie opnieuw &mdash; dan is het opgelost. Blijft het terugkomen op dezelfde PO, meld het.
+    </div>
+    <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--dib); border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
+      <b style="color:var(--dib-glow)">&#8505; Foutmelding: "Cannot edit a record in Load details (WHSLoadLine) &mdash; The record has never been selected"</b><br>
+      <b>Proces-/timingfout</b>, geen datafout in de container-inhoud. Komt vaak nadat je regels uit de container verwijderde: het receiving-proces of een wave verwijst nog naar de oude load-regels.
+      <ol style="margin:6px 0 0; padding-left:18px">
+        <li>Staat er een <b>Wave</b> in de log (bv. <code>WAVE-003633148</code>)? &rarr; <b>All work</b> &rarr; filter op die wave/load &rarr; <b>Cancel work</b>.</li>
+        <li>Check <b>Load details</b>: zijn de verwijderde LP-regels er echt uit?</li>
+        <li><b>Reset status</b> &rarr; retry. Meestal in 1&ndash;2 pogingen opgelost.</li>
+      </ol>
+      Zie je er ook <i>"Some quantity for item ... was not released because not all above location dimensions are known"</i> bij? Zelfde wave-probleem &mdash; verdwijnt meestal mee na cancel work + reset.
     </div>
     <footer class="note">
       <b>Duplicate references</b> &mdash; meerdere license plates die naar dezelfde besteloregel wijzen. Vaak de oorzaak van "inventory dimensions on load lines cannot be changed because work has been created".<br>
@@ -374,7 +386,7 @@ function cecCopyPlan(){ const t=document.createElement('textarea'); t.value=CEC_
 function renderDiagnosis(){
   const box=document.getElementById('diagnosis'); if(!box) return;
   if(!lpRows){ box.innerHTML=''; return; }
-  var sb=document.getElementById('suspectBtn'); if(CEC_focus==='deadlock'){ if(sb) sb.hidden=true; var sr=document.getElementById('suspectResults'); if(sr) sr.innerHTML=''; var bp=document.getElementById('brainPanel'); if(bp) bp.innerHTML=''; box.innerHTML='<div class="results-block" style="border-left:3px solid var(--dib)"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">Een <b>Deadlock op PurchTableVersion</b> is geen container-inhoudsprobleem &mdash; er valt hier niets in de export te vinden. Reset de order-status of probeer opnieuw (zie info-kaart onderaan).</div></div>'; return; } if(sb) sb.hidden=false; const cand=computeCandidates(); CEC_lastCand=cand;
+  var sb=document.getElementById('suspectBtn'); if(CEC_focus==='deadlock'||CEC_focus==='loadline'){ if(sb) sb.hidden=true; var sr=document.getElementById('suspectResults'); if(sr) sr.innerHTML=''; var bp=document.getElementById('brainPanel'); if(bp) bp.innerHTML=''; var infoMsg=(CEC_focus==='loadline')?'Een <b>WHSLoadLine-fout (record has never been selected)</b> is een proces-/timingfout, geen inhoudsprobleem. Komt vaak n&aacute;dat je regels verwijderde: het proces of een wave verwijst nog naar de oude load-regels. Aanpak: <b>All work</b> &rarr; filter op de wave uit de log &rarr; <b>Cancel work</b>; check dat de verwijderde LP\'s echt uit de Load details zijn; dan <b>reset status</b> + retry (zie info-kaart onderaan).':'Een <b>Deadlock op PurchTableVersion</b> is geen container-inhoudsprobleem &mdash; er valt hier niets in de export te vinden. Reset de order-status of probeer opnieuw (zie info-kaart onderaan).'; box.innerHTML='<div class="results-block" style="border-left:3px solid var(--dib)"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">'+infoMsg+'</div></div>'; return; } if(sb) sb.hidden=false; const cand=computeCandidates(); CEC_lastCand=cand;
   cecRenderList(); cecRenderBrain();
   if(!cand.length){ box.innerHTML='<div class="results-block"><h2>&#129504; Slimme diagnose</h2><div class="no-flags">Geen duidelijke signalen gevonden. Controleer of de kolommen herkend zijn (juiste export?), of bekijk de volledige ranglijst.</div></div>'; return; }
   const top=cand[0]; const conf=cecConf(cand);
