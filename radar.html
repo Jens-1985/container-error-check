@@ -52,7 +52,7 @@ button.small{padding:6px 12px;border:1px solid var(--line);border-radius:6px;bac
 <body>
 <div class="app">
 <header>
-  <span class="version">Radar v1.0</span>
+  <span class="version">Radar v1.1</span>
   <h1>&#128225; Receiving Radar</h1>
   <p>Dagelijkse opvolging van open receiving-regels: welke loads zitten &eacute;cht vast, wat is enkel een claim (beschadigd/manco) die administratief blijft hangen, en welke patronen keren terug. Alles draait lokaal &mdash; er verlaat niets je computer.</p>
   <span class="backlink"><a href="index.html">&larr; Container Error Check</a></span>
@@ -102,7 +102,7 @@ function buildClaimIndex(){
   if(!claimRows) return idx;
   claimRows.forEach(function(r){
     var lp=findVal(r,A_LP), load=findVal(r,A_LOAD), it=findVal(r,A_ITEM);
-    if(lp!=null&&lp!==''){ idx.lp[String(lp).trim()]=1; idx.hasLP=true; }
+    if(lp!=null&&lp!==''){ idx.lp[String(lp).trim()]={id:findVal(r,['claimid','claim']),exc:findVal(r,['exceptioncode','exception']),st:findVal(r,['claimstatus','status'])}; idx.hasLP=true; } else { idx.noLP=(idx.noLP||0)+1; }
     if(load!=null&&it!=null){ idx.loadItem[String(load).trim()+'||'+String(it).trim()]=1; idx.hasLoad=true; }
     if(it!=null&&it!==''){ idx.item[String(it).trim()]=1; idx.hasItem=true; }
     idx.n++;
@@ -119,11 +119,11 @@ function analyze(){
     var load=findVal(r,A_LOAD), lp=findVal(r,A_LP), it=findVal(r,A_ITEM);
     var rem=num(findVal(r,A_REM)), canc=num(findVal(r,A_CANC));
     var claimed=false;
-    if(ci.n){ if(ci.hasLP&&lp!=null&&ci.lp[String(lp).trim()]) claimed=true;
+    var claimInfo=null; if(ci.n){ if(ci.hasLP&&lp!=null&&ci.lp[String(lp).trim()]){ claimed=true; claimInfo=ci.lp[String(lp).trim()]; }
       else if(ci.hasLoad&&load!=null&&it!=null&&ci.loadItem[String(load).trim()+'||'+String(it).trim()]) claimed=true; }
     return { load:load==null?'?':String(load).trim(), lp:lp==null?'':String(lp).trim(), item:it==null?'':String(it).trim(),
       qty:num(findVal(r,A_QTY)), rem:rem, canc:canc, inproc:num(findVal(r,A_INPROC)), xdock:num(findVal(r,A_XDOCK)),
-      created:toDate(findVal(r,A_CREATED)), claimed:claimed };
+      created:toDate(findVal(r,A_CREATED)), claimed:claimed, claimInfo:claimInfo };
   });
   if(flt){ var byLoad={}; lines.forEach(function(l){ (byLoad[l.load]=byLoad[l.load]||[]).push(l); });
     var keep={}; for(var ld in byLoad){ if(byLoad[ld].some(function(l){ return (l.load+' '+l.item+' '+l.lp).toLowerCase().indexOf(flt)>=0; })) keep[ld]=1; }
@@ -158,7 +158,7 @@ function analyze(){
   var cm=document.getElementById('claimMatchInfo');
   if(!claimRows){ cm.innerHTML='<div class="block" style="border-left:3px solid var(--amber)"><span class="hint">&#9432; Geen claims-export geladen: elke openstaande regel telt nu als "echt open". Laad bestand 2 om claims (beschadigd/manco) eruit te filteren.</span></div>'; }
   else { var how=ci.hasLP?'license plate':(ci.hasLoad?'load + item':(ci.hasItem?'alleen itemnummer (zwak)':'geen bruikbare kolommen!'));
-    cm.innerHTML='<div class="block" style="border-left:3px solid var(--dib)"><span class="hint">&#9432; Claims gematcht op: <b>'+how+'</b> ('+ci.n+' claims geladen). Klopt de matching niet, meld welke kolommen de claims-export heeft.</span></div>'; }
+    cm.innerHTML='<div class="block" style="border-left:3px solid var(--dib)"><span class="hint">&#9432; Claims gematcht op: <b>'+how+'</b> ('+ci.n+' claims geladen'+(ci.noLP?', waarvan '+ci.noLP+' zonder LP - niet matchbaar':'')+'). Klopt de matching niet, meld welke kolommen de claims-export heeft.</span></div>'; }
   renderPatterns(loads); renderLoads(loads,limit);
 }
 function renderPatterns(loads){
@@ -188,7 +188,7 @@ function renderLoads(loads,limit){
     h+='<tr class="loadrow" onclick="toggleDetail(\''+L.load+'\')"><td>'+badge(L.status,limit)+'</td><td class="mono">'+L.load+'</td><td class="mono">'+(L.age==null?'?':L.age+'d')+'</td><td class="mono">'+L.lines+'</td><td class="mono">'+L.remReal+'</td><td class="mono">'+L.claimedLines+'</td><td class="mono">'+(L.inproc+L.xdock)+'</td></tr>';
     if(openDetail[L.load]){
       h+='<tr class="detail"><td colspan="7"><table><thead><tr><th>LP</th><th>Item</th><th>Qty</th><th>Remaining</th><th></th></tr></thead><tbody>';
-      L.rows.slice(0,60).forEach(function(l){ h+='<tr><td class="mono">'+l.lp+'</td><td class="mono">'+l.item+'</td><td class="mono">'+l.qty+'</td><td class="mono">'+l.rem+'</td><td>'+(l.claimed?'<span class="badge grey">claim</span>':(l.rem>0?'<span class="badge red">open</span>':''))+'</td></tr>'; });
+      L.rows.slice(0,60).forEach(function(l){ h+='<tr><td class="mono">'+l.lp+'</td><td class="mono">'+l.item+'</td><td class="mono">'+l.qty+'</td><td class="mono">'+l.rem+'</td><td>'+(l.claimed?'<span class="badge grey">claim '+(l.claimInfo&&l.claimInfo.id?l.claimInfo.id:'')+(l.claimInfo&&l.claimInfo.exc?' - '+l.claimInfo.exc:'')+'</span>':(l.rem>0?'<span class="badge red">open</span>':''))+'</td></tr>'; });
       if(L.rows.length>60) h+='<tr><td colspan="5" class="hint">... nog '+(L.rows.length-60)+' regels</td></tr>';
       h+='</tbody></table></td></tr>';
     }
