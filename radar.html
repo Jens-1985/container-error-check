@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Receiving Radar</title>
+<link rel="icon" href="favicon.svg">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--paper:#0B1120;--panel:#141F38;--panel-2:#1B2A4A;--line:#24365E;--ink:#E8EEFA;--muted:#9FB4DA;--dib:#2D6BE0;--dib-deep:#0E2A66;--dib-glow:#7FA8F0;--amber:#FFC46B;--red:#FF7062;--green:#5BD08B;--mono:Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding:24px}
+.app{max-width:1180px;margin:0 auto}
+header{background:linear-gradient(135deg,var(--dib-deep),var(--dib));border-radius:12px;padding:18px 24px;position:relative;margin-bottom:18px}
+header h1{margin:0;font-size:20px;letter-spacing:1.5px;text-transform:uppercase}
+header p{margin:4px 0 0;color:#D6E4FF;font-size:12.5px;max-width:900px}
+.version{position:absolute;top:16px;right:22px;font-family:var(--mono);font-size:11px;color:#CFE0FF}
+.backlink{position:absolute;bottom:14px;right:22px;font-size:12px}
+.backlink a{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.4);padding:4px 10px;border-radius:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.card label{display:block;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.card .fn{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:6px}
+.howto{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+.controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12.5px}
+.controls input[type=number]{width:56px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-2);color:var(--ink);font:inherit}
+.controls input[type=text]{flex:1;min-width:220px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);font:inherit}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
+.stat .num{display:block;font-size:24px;font-weight:800;font-family:var(--mono)}
+.stat .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.stat.red .num{color:var(--red)}.stat.amber .num{color:var(--amber)}.stat.green .num{color:var(--green)}.stat.blue .num{color:var(--dib-glow)}
+.block{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.block h2{margin:0 0 10px;font-size:15px}
+.hint{color:var(--muted);font-weight:400;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{ text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.loadrow{cursor:pointer}
+tr.loadrow:hover td{background:var(--panel-2)}
+.mono{font-family:var(--mono);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.red{background:#4A1D1D;color:var(--red)}
+.badge.amber{background:#4A3A1D;color:var(--amber)}
+.badge.green{background:#1D4A2C;color:var(--green)}
+.badge.grey{background:#26314D;color:var(--muted)}
+.detail td{background:#0E1730;font-size:12px}
+.empty{color:var(--muted);text-align:center;padding:30px 0}
+button.small{padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);cursor:pointer;font:inherit;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <span class="version">Radar v1.0</span>
+  <h1>&#128225; Receiving Radar</h1>
+  <p>Dagelijkse opvolging van open receiving-regels: welke loads zitten &eacute;cht vast, wat is enkel een claim (beschadigd/manco) die administratief blijft hangen, en welke patronen keren terug. Alles draait lokaal &mdash; er verlaat niets je computer.</p>
+  <span class="backlink"><a href="index.html">&larr; Container Error Check</a></span>
+</header>
+<div class="grid">
+  <div class="card">
+    <label>1 &middot; Open receipt lines export</label>
+    <input type="file" id="asnFile" accept=".xlsx,.xls">
+    <div class="fn" id="asnName">Geen bestand geladen</div>
+    <div class="howto">Omgevings-URL + <code>&amp;mi=CgkWHSASNReceiptLinesOpenV2</code> &rarr; Options &rarr; Export to Excel. Trek deze na de ochtend-batchjob voor een vers beeld.</div>
+  </div>
+  <div class="card">
+    <label>2 &middot; Supplier claims export <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel, sterk aangeraden)</span></label>
+    <input type="file" id="claimFile" accept=".xlsx,.xls">
+    <div class="fn" id="claimName">Zonder claims: alles telt als "echt open"</div>
+    <div class="howto">Omgevings-URL + <code>&amp;mi=CgkSupplierClaim</code> &rarr; Export to Excel. De radar filtert geclaimde stukken er dan uit.</div>
+  </div>
+</div>
+<div class="controls">
+  <span>Verdacht na <input type="number" id="ageLimit" value="7" min="1" max="60"> dagen</span>
+  <input type="text" id="filter" placeholder="Filter op load-, item- of LP-nummer...">
+  <span class="hint" id="todayNote"></span>
+</div>
+<div class="stats" id="stats" hidden></div>
+<div id="claimMatchInfo"></div>
+<div id="patterns"></div>
+<div id="loads"></div>
+<div class="empty" id="empty">Upload de open receipt lines export om te starten.</div>
+</div><script>
+"use strict";
+var TODAY=new Date(); TODAY.setHours(0,0,0,0);
+document.getElementById('todayNote').textContent='Vandaag: '+('0'+TODAY.getDate()).slice(-2)+'/'+('0'+(TODAY.getMonth()+1)).slice(-2)+'/'+TODAY.getFullYear();
+function normKey(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
+function findVal(row,aliases){ for(var k in row){ if(aliases.indexOf(normKey(k))>=0) return row[k]; } return null; }
+function num(v){ if(v==null||v==='') return 0; var n=Number(String(v).replace(',','.')); return isNaN(n)?0:n; }
+function toDate(v){ if(v==null) return null; if(v instanceof Date) return v; if(typeof v==='number') return new Date(Math.round((v-25569)*86400000)); var d=new Date(v); return isNaN(d.getTime())?null:d; }
+var A_LOAD=['loadid','load'],A_LP=['licenseplate','licenseplateid','kentekenplaat','lp'],A_ITEM=['itemnumber','itemid','artikelnummer','artikel','item'],A_REM=['quantityremaining','qtyremaining','remaining'],A_CREATED=['createddateandtime','createddatetime','created','aanmaakdatumentijd'],A_INPROC=['quantityinprocess'],A_XDOCK=['quantitycrossdockinprocess'],A_CANC=['cancelledqty','canceledqty','cancelledquantity','geannuleerdeaantal'],A_QTY=['quantity','qty','aantal'],A_SHIP=['shipmentid','shipment'];
+var asnRows=null, claimRows=null;
+function readFile(file,cb){ var r=new FileReader(); r.onload=function(e){ try{ var wb=XLSX.read(e.target.result,{type:'array',cellDates:true}); var ws=wb.Sheets[wb.SheetNames[0]]; cb(XLSX.utils.sheet_to_json(ws,{defval:null})); }catch(err){ alert('Kon bestand niet lezen: '+err.message); } }; r.readAsArrayBuffer(file); }
+document.getElementById('asnFile').addEventListener('change',function(e){ var f=e.target.files[0]; if(!f) return; readFile(f,function(rows){ asnRows=rows; document.getElementById('asnName').textContent=f.name+' - '+rows.length+' regels'; analyze(); }); });
+document.getElementById('claimFile').addEventListener('change',function(e){ var f=e.target.files[0]; if(!f) return; readFile(f,function(rows){ claimRows=rows; document.getElementById('claimName').textContent=f.name+' - '+rows.length+' claims'; analyze(); }); });
+document.getElementById('ageLimit').addEventListener('input',function(){ if(asnRows) analyze(); });
+document.getElementById('filter').addEventListener('input',function(){ if(asnRows) analyze(); });
+var openDetail={};
+function buildClaimIndex(){
+  var idx={lp:{},loadItem:{},item:{},hasLP:false,hasLoad:false,hasItem:false,n:0};
+  if(!claimRows) return idx;
+  claimRows.forEach(function(r){
+    var lp=findVal(r,A_LP), load=findVal(r,A_LOAD), it=findVal(r,A_ITEM);
+    if(lp!=null&&lp!==''){ idx.lp[String(lp).trim()]=1; idx.hasLP=true; }
+    if(load!=null&&it!=null){ idx.loadItem[String(load).trim()+'||'+String(it).trim()]=1; idx.hasLoad=true; }
+    if(it!=null&&it!==''){ idx.item[String(it).trim()]=1; idx.hasItem=true; }
+    idx.n++;
+  });
+  return idx;
+}
+function analyze(){
+  if(!asnRows) return;
+  document.getElementById('empty').hidden=true;
+  var limit=Math.max(1,num(document.getElementById('ageLimit').value)||7);
+  var flt=String(document.getElementById('filter').value||'').trim().toLowerCase();
+  var ci=buildClaimIndex();
+  var lines=asnRows.map(function(r){
+    var load=findVal(r,A_LOAD), lp=findVal(r,A_LP), it=findVal(r,A_ITEM);
+    var rem=num(findVal(r,A_REM)), canc=num(findVal(r,A_CANC));
+    var claimed=false;
+    if(ci.n){ if(ci.hasLP&&lp!=null&&ci.lp[String(lp).trim()]) claimed=true;
+      else if(ci.hasLoad&&load!=null&&it!=null&&ci.loadItem[String(load).trim()+'||'+String(it).trim()]) claimed=true; }
+    return { load:load==null?'?':String(load).trim(), lp:lp==null?'':String(lp).trim(), item:it==null?'':String(it).trim(),
+      qty:num(findVal(r,A_QTY)), rem:rem, canc:canc, inproc:num(findVal(r,A_INPROC)), xdock:num(findVal(r,A_XDOCK)),
+      created:toDate(findVal(r,A_CREATED)), claimed:claimed };
+  });
+  if(flt){ var byLoad={}; lines.forEach(function(l){ (byLoad[l.load]=byLoad[l.load]||[]).push(l); });
+    var keep={}; for(var ld in byLoad){ if(byLoad[ld].some(function(l){ return (l.load+' '+l.item+' '+l.lp).toLowerCase().indexOf(flt)>=0; })) keep[ld]=1; }
+    lines=lines.filter(function(l){ return keep[l.load]; }); }
+  var per={};
+  lines.forEach(function(l){
+    var L=per[l.load]=per[l.load]||{load:l.load,lines:0,rem:0,remReal:0,claimedLines:0,inproc:0,xdock:0,created:null,rows:[]};
+    L.lines++; L.rem+=l.rem; L.inproc+=l.inproc; L.xdock+=l.xdock; L.rows.push(l);
+    if(l.claimed) L.claimedLines++; else if(l.rem>0) L.remReal+=l.rem;
+    if(l.created&&(L.created==null||l.created<L.created)) L.created=l.created;
+  });
+  var loads=Object.keys(per).map(function(k){ var L=per[k];
+    L.age=L.created?Math.floor((TODAY-L.created)/86400000):null;
+    if(L.remReal<=0&&L.claimedLines>0){ L.status='claims'; }
+    else if(L.remReal<=0){ L.status='ok'; }
+    else if(L.age!=null&&L.age>=limit){ L.status='vast'; }
+    else if(L.age!=null&&L.age>=3){ L.status='sluimert'; }
+    else { L.status='recent'; }
+    return L; });
+  var rank={vast:0,sluimert:1,recent:2,claims:3,ok:4};
+  loads.sort(function(a,b){ return (rank[a.status]-rank[b.status])||((b.age||0)-(a.age||0))||(b.remReal-a.remReal); });
+  var nVast=loads.filter(function(l){return l.status==='vast';}).length;
+  var nSl=loads.filter(function(l){return l.status==='sluimert';}).length;
+  var nClaims=lines.filter(function(l){return l.claimed;}).length;
+  var nEcht=lines.filter(function(l){return !l.claimed&&l.rem>0;}).length;
+  var st=document.getElementById('stats'); st.hidden=false;
+  st.innerHTML='<div class="stat blue"><span class="num">'+loads.length+'</span><span class="lbl">Loads open</span></div>'
+    +'<div class="stat red"><span class="num">'+nVast+'</span><span class="lbl">Vast (&ge;'+limit+'d, echt open)</span></div>'
+    +'<div class="stat amber"><span class="num">'+nSl+'</span><span class="lbl">Sluimert (3-'+(limit-1)+'d)</span></div>'
+    +'<div class="stat green"><span class="num">'+nEcht+'</span><span class="lbl">Regels echt open</span></div>'
+    +'<div class="stat"><span class="num" style="color:var(--muted)">'+nClaims+'</span><span class="lbl">Regels geclaimd</span></div>';
+  var cm=document.getElementById('claimMatchInfo');
+  if(!claimRows){ cm.innerHTML='<div class="block" style="border-left:3px solid var(--amber)"><span class="hint">&#9432; Geen claims-export geladen: elke openstaande regel telt nu als "echt open". Laad bestand 2 om claims (beschadigd/manco) eruit te filteren.</span></div>'; }
+  else { var how=ci.hasLP?'license plate':(ci.hasLoad?'load + item':(ci.hasItem?'alleen itemnummer (zwak)':'geen bruikbare kolommen!'));
+    cm.innerHTML='<div class="block" style="border-left:3px solid var(--dib)"><span class="hint">&#9432; Claims gematcht op: <b>'+how+'</b> ('+ci.n+' claims geladen). Klopt de matching niet, meld welke kolommen de claims-export heeft.</span></div>'; }
+  renderPatterns(loads); renderLoads(loads,limit);
+}
+function renderPatterns(loads){
+  var groups={};
+  loads.forEach(function(L){ if(L.status!=='vast'&&L.status!=='sluimert') return;
+    var sig=L.rows.filter(function(l){return l.rem>0&&!l.claimed;}).map(function(l){return l.item+':'+l.rem;}).sort().join('|');
+    if(!sig) return; (groups[sig]=groups[sig]||[]).push(L.load); });
+  var big=Object.keys(groups).filter(function(s){return groups[s].length>=5;}).sort(function(a,b){return groups[b].length-groups[a].length;});
+  var box=document.getElementById('patterns');
+  if(!big.length){ box.innerHTML=''; return; }
+  var h='<div class="block"><h2>&#128257; Terugkerende patronen <span class="hint">- zelfde open regels op 5+ loads: waarschijnlijk structureel (interface/claim), geen los incident</span></h2><table><thead><tr><th>Loads</th><th>Open regels (item : aantal)</th><th>Voorbeelden</th></tr></thead><tbody>';
+  big.slice(0,8).forEach(function(sig){ var items=sig.split('|').slice(0,4).join(', ')+(sig.split('|').length>4?' ...':'');
+    h+='<tr><td class="mono">'+groups[sig].length+'x</td><td class="mono">'+items+'</td><td class="mono">'+groups[sig].slice(0,3).join(', ')+(groups[sig].length>3?' ...':'')+'</td></tr>'; });
+  h+='</tbody></table></div>'; box.innerHTML=h;
+}
+function badge(st,limit){ if(st==='vast') return '<span class="badge red">vast</span>'; if(st==='sluimert') return '<span class="badge amber">sluimert</span>'; if(st==='claims') return '<span class="badge grey">enkel claims</span>'; if(st==='ok') return '<span class="badge green">niets open</span>'; return '<span class="badge green">recent</span>'; }
+function toggleDetail(load){ openDetail[load]=!openDetail[load]; analyze(); }
+function copyList(){ var t=document.getElementById('copySrc').value; var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); alert('Opkuislijst gekopieerd.'); }
+function renderLoads(loads,limit){
+  var box=document.getElementById('loads');
+  var h='<div class="block"><h2>&#128230; Loads <span class="hint">- klik een load voor de regels; rood eerst</span></h2>';
+  var vast=loads.filter(function(l){return l.status==='vast';});
+  if(vast.length){ var txt=vast.map(function(l){return l.load+' | '+l.age+' dagen | '+l.remReal+' stuks echt open';}).join('\n');
+    h+='<div style="margin-bottom:10px"><button class="small" onclick="copyList()">&#128203; Kopieer opkuislijst ('+vast.length+' vaste loads)</button><textarea id="copySrc" style="display:none">'+txt.replace(/</g,'&lt;')+'</textarea></div>'; }
+  h+='<table><thead><tr><th>Status</th><th>Load</th><th>Leeftijd</th><th>Regels</th><th>Echt open</th><th>Geclaimd</th><th>In process</th></tr></thead><tbody>';
+  loads.slice(0,200).forEach(function(L){
+    h+='<tr class="loadrow" onclick="toggleDetail(\''+L.load+'\')"><td>'+badge(L.status,limit)+'</td><td class="mono">'+L.load+'</td><td class="mono">'+(L.age==null?'?':L.age+'d')+'</td><td class="mono">'+L.lines+'</td><td class="mono">'+L.remReal+'</td><td class="mono">'+L.claimedLines+'</td><td class="mono">'+(L.inproc+L.xdock)+'</td></tr>';
+    if(openDetail[L.load]){
+      h+='<tr class="detail"><td colspan="7"><table><thead><tr><th>LP</th><th>Item</th><th>Qty</th><th>Remaining</th><th></th></tr></thead><tbody>';
+      L.rows.slice(0,60).forEach(function(l){ h+='<tr><td class="mono">'+l.lp+'</td><td class="mono">'+l.item+'</td><td class="mono">'+l.qty+'</td><td class="mono">'+l.rem+'</td><td>'+(l.claimed?'<span class="badge grey">claim</span>':(l.rem>0?'<span class="badge red">open</span>':''))+'</td></tr>'; });
+      if(L.rows.length>60) h+='<tr><td colspan="5" class="hint">... nog '+(L.rows.length-60)+' regels</td></tr>';
+      h+='</tbody></table></td></tr>';
+    }
+  });
+  if(loads.length>200) h+='<tr><td colspan="7" class="hint">... nog '+(loads.length-200)+' loads (gebruik de filter)</td></tr>';
+  h+='</tbody></table></div>'; box.innerHTML=h;
+}
+</script>
+</body>
+</html>
