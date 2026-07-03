@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.10.0</span>
+    <span class="version">v1.10.1</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -304,9 +304,9 @@ function fmtDate(d){ return String(d.getDate()).padStart(2,'0')+'/'+String(d.get
 function normKey(s){ return String(s||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''); }
 function findVal(row,aliases){ for(const k of Object.keys(row)){ if(aliases.includes(normKey(k))) return row[k]; } return undefined; }
 function getLP(row){ return findVal(row,['licenseplate','kentekenplaat','kenteken']); }
-function getPO(row){ return findVal(row,['purchaseorder','inkooporder','bestelling']); }
-function getItem(row){ return findVal(row,['itemnumber','artikelnummer','artikel']); }
-function getQty(row){ const v=findVal(row,['quantity','aantal','hoeveelheid']); return v==null?null:Number(v); }
+function getPO(row){ return findVal(row,['purchaseorder','inkooporder','bestelling','ordernum','ordernummer']); }
+function getItem(row){ return findVal(row,['itemnumber','artikelnummer','artikel','itemid']); }
+function getQty(row){ const v=findVal(row,['quantity','aantal','hoeveelheid','qty','inventqty']); return v==null?null:Number(v); }
 function getWorkQty(row){ const v=findVal(row,['workcreatedquantity','workcreatedqty']); const p=findVal(row,['putawayworkcreatedquantity','putawayworkcreatedqty']); function num(x){ if(x==null) return 0; const n=Number(String(x).replace(',','.')); return isNaN(n)?0:n; } return num(v)+num(p); }
 function getRef(row){ return findVal(row,['reference','referentie']); }
 function getBatch(row){ const v=findVal(row,['batchnumber','batchnummer','partijnummer','partij']); return v==null?'':String(v).trim(); }
