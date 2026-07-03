@@ -100,7 +100,7 @@
 
   <header class="topbar">
     <div class="scanline"></div>
-    <span class="version">v1.6.0</span>
+    <span class="version">v1.7.0</span>
     <div class="brand">
       <span class="brand-mark">◆</span>
       <div>
@@ -117,6 +117,7 @@
         <ol style="margin:6px 0 0;padding-left:18px">
           <li><b>Lees eerst de foutmelding</b> &mdash; Licenseplate receiving sessions &rarr; container met status <code>Errored</code> &rarr; open de log (integrationlog). Kies de melding hieronder bij <i>"Welke foutmelding?"</i> zodat de tool gericht zoekt.</li>
           <li><b>Deadlock (PurchTableVersion)?</b> &rarr; stop met zoeken: geen datafout. <b>Reset status</b> + opnieuw proberen, klaar.</li>
+          <li><b>"Ordered reserved inventory exists"?</b> &rarr; er is een <b>reservering</b> tegen de inkomende (ordered) voorraad &mdash; bijna altijd een open SO. Ga naar de SO-regel &rarr; <b>Inventory &rarr; Reservation</b> &rarr; verwijder de reservering (of handel de SO af). Upload export 1 + 3 en de tool wijst het item + de SO aan.</li>
           <li><b>"Work has been created"?</b> Kijk in deze volgorde:
             <ul style="margin:4px 0;padding-left:16px">
               <li><b>All work</b> &rarr; filter op load-/shipmentnummer &rarr; <b>Cancel work</b> (staat het <i>In process</i>: load splitsen).</li>
@@ -196,6 +197,7 @@
         <select id="errFocus" style="padding:5px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel-2);color:var(--ink);font-family:var(--sans);font-size:12.5px">
           <option value="">Algemeen (alle signalen)</option>
           <option value="workcreated">work has been created / dimensions cannot be changed</option>
+          <option value="reserved">cannot change dimensions / ordered reserved inventory</option>
           <option value="batch">batch / vervaldatum-fout</option>
           <option value="overdelivery">overdelivery</option>
           <option value="deadlock">deadlock (PurchTableVersion)</option>
@@ -241,8 +243,18 @@
       </ol>
       Daarna telkens: <b>reset status</b> en herstart het receiving.
     </div>
+    <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid #FFC46B; border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
+      <b style="color:#FFC46B">&#9888; Foutmelding: "Cannot change dimensions because ordered reserved inventory exists"</b><br>
+      Er bestaat een <b>reservering tegen de bestelde (ordered) voorraad</b> van een container-item &mdash; meestal een open sales order die al gereserveerd heeft op de inkomende PO. Daardoor mogen de dimensies bij receiving niet meer wijzigen.
+      <ol style="margin:6px 0 0; padding-left:18px">
+        <li><b>Vind het item</b> &mdash; upload export 1 + 3 hierboven en kies deze foutmelding; de tool wijst het item en de open SO aan.</li>
+        <li><b>Verwijder de reservering</b> &mdash; SO-regel &rarr; Inventory &rarr; Reservation &rarr; reservering weghalen (of handel de SO af).</li>
+        <li><b>Check ook marking</b> op de PO-regel.</li>
+        <li>Daarna: fout stuk eruit indien nodig &rarr; <b>reset status</b> &rarr; retry.</li>
+      </ol>
+    </div>
     <div style="margin-top:26px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--dib); border-radius:10px; padding:14px 18px; font-size:12.5px; line-height:1.6; color:var(--ink)">
-      <b style="color:var(--dib-glow)">&#8505; Andere foutmelding: Deadlock op Purchase order versions</b><br>
+<b style="color:var(--dib-glow)">&#8505; Andere foutmelding: Deadlock op Purchase order versions</b><br>
       Zie je <i>"Cannot edit a record in Purchase order versions (PurchTableVersion) &mdash; Deadlock"</i>? Dat is <b>geen container-inhoudsprobleem</b> &mdash; zoek er dus niet voor in de export. Het is een tijdelijke database-lock, meestal doordat een batchjob (bv. CLIPS / <code>srvazr_clips</code>) en een gebruiker tegelijk aan dezelfde PO werken.<br>
       <b>Oplossing:</b> zet de order-status terug (<b>reset status</b>) of probeer de actie opnieuw &mdash; dan is het opgelost. Blijft het terugkomen op dezelfde PO, meld het.
     </div>
@@ -296,7 +308,7 @@ document.getElementById('tolerance').addEventListener('input',e=>{ tolerance=Num
 document.getElementById('search').addEventListener('input',analyze);
 document.querySelectorAll('.howto-toggle').forEach(btn=>{ btn.addEventListener('click',()=>{ document.getElementById(btn.dataset.target).classList.toggle('open'); }); });
 
-let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4,crossdockSO:3.5},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4,crossdockSO:0.6},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5,crossdockSO:0.6}};
+let CEC_lastCand=[]; let CEC_listOpen=false; let CEC_dismissed=new Set(); let CEC_focus=''; const CEC_FOCUS={reserved:{crossdockSO:3.5,dupRef:0.8,expired:0.4,expirySoon:0.4,noDate:0.4,emptyBatch:0.4,noDateInconsistent:0.4,overdelivery:0.4},workcreated:{dupRef:3,noDateInconsistent:1.6,noDate:1.4,emptyBatch:1.4,expired:0.6,expirySoon:0.4,overdelivery:0.4,crossdockSO:3.5},batch:{expired:2,expirySoon:2,noDate:1.8,emptyBatch:1.8,noDateInconsistent:1.8,dupRef:0.5,overdelivery:0.4,crossdockSO:0.6},overdelivery:{overdelivery:3,dupRef:0.5,expired:0.5,expirySoon:0.5,noDate:0.5,emptyBatch:0.5,noDateInconsistent:0.5,crossdockSO:0.6}};
 const CEC_DEFAULT={dupRef:3.5, expired:4.5, expirySoon:1.5, noDateInconsistent:3.0, noDate:1.0, emptyBatch:1.3, overdelivery:2.2, crossdockSO:4.0};
 const CEC_SUM=Object.values(CEC_DEFAULT).reduce((a,b)=>a+b,0);
 const CEC_KEY='cec_brain_v1';
@@ -333,7 +345,7 @@ let CEC_planText='';
 function cecActionTip(c){
   const f=c.f;
   if(f.dupRef) return 'Duplicate reference: meerdere license plates wijzen naar dezelfde bestelorderregel. Verwijder de dubbele LP (hou de juiste) en check bestaand werk (All work → Cancel work).';
-  if(f.crossdockSO) return 'Open sales order op dit item: crossdock pint de inbound en maakt werk aan. Annuleer eerst het werk (All work → Cancel work) of handel de SO af; blijft het blokkeren, haal dan deze regel eruit.';
+  if(f.crossdockSO) return 'Open sales order op dit item: crossdock pint de inbound en maakt werk aan. Annuleer eerst het werk (All work → Cancel work) of handel de SO af; blijft het blokkeren, haal dan deze regel eruit. Check ook de reservering: SO-regel → Inventory → Reservation → verwijderen.';
   if(f.expired) return 'Batch is vervallen: haal deze LP uit de container (of corrigeer de batchdatum als het een tikfout is).';
   if(f.noDateInconsistent||f.noDate||f.emptyBatch) return 'Batch zonder (geldige) datum: haal deze LP eruit of vul de juiste batch in.';
   if(f.overdelivery) return 'Overdelivery: verwijder het teveel geleverde deel van deze regel zodat je binnen de tolerantie blijft.';
